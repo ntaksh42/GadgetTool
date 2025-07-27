@@ -1,0 +1,124 @@
+<Window x:Class="GadgetTools.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:GadgetTools.Controls"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+        Title="GadgetTools" Height="700" Width="900"
+        WindowStartupLocation="CenterScreen"
+        Icon="pack://application:,,,/Resources/gadgettools.ico"
+        AllowDrop="True">
+    
+    <Window.Resources>
+        <Style TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border Name="Border" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="1,1,1,0" 
+                                CornerRadius="4,4,0,0"
+                                Margin="0,0,2,0">
+                            <StackPanel Orientation="Horizontal" Margin="8,4">
+                                <TextBlock Text="⋮⋮" Foreground="Gray" FontSize="10" 
+                                          VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <ContentPresenter ContentSource="Header" 
+                                                VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#E6F3FF"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#4A90E2"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#F0F8FF"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- プラグインタブのDataTemplate -->
+        <DataTemplate x:Key="PluginTabTemplate">
+            <Grid>
+                <ContentPresenter Content="{Binding View}"/>
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
+
+    <i:Interaction.Triggers>
+        <i:EventTrigger EventName="Closing">
+            <i:InvokeCommandAction Command="{Binding WindowClosingCommand}"/>
+        </i:EventTrigger>
+    </i:Interaction.Triggers>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- メインコンテンツ -->
+        <Grid Grid.Row="0">
+            <!-- ローディング表示 -->
+            <Grid Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
+                  Background="#F0F0F0">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <ProgressBar Width="200" Height="20" IsIndeterminate="True" Margin="0,0,0,10"/>
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="14" Foreground="#666"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- プラグインタブ -->
+            <controls:DraggableTabControl x:Name="MainTabControl" 
+                                          ItemsSource="{Binding PluginTabs}"
+                                          SelectedIndex="{Binding SelectedTabIndex}"
+                                          Margin="10"
+                                          Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityInverseConverter}}">
+                <TabControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Header}" VerticalAlignment="Center"/>
+                            <!-- プラグインが無効な場合の表示 -->
+                            <TextBlock Text=" (無効)" Foreground="Gray" FontStyle="Italic"
+                                      Visibility="{Binding IsEnabled, Converter={StaticResource BooleanToVisibilityInverseConverter}}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+                <TabControl.ContentTemplate>
+                    <DataTemplate>
+                        <Border Padding="5">
+                            <ContentPresenter Content="{Binding View}"/>
+                        </Border>
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </controls:DraggableTabControl>
+        </Grid>
+
+        <!-- ステータスバー -->
+        <StatusBar Grid.Row="1">
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="🔧 GadgetTools" FontWeight="Bold" Margin="0,0,10,0"/>
+                    <TextBlock Text="{Binding StatusMessage}"/>
+                </StackPanel>
+            </StatusBarItem>
+            
+            <StatusBarItem HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding PluginTabs.Count, StringFormat='プラグイン: {0}個'}" 
+                              FontSize="11" Foreground="Gray" Margin="0,0,10,0"/>
+                    
+                    <!-- ローディング表示 -->
+                    <StackPanel Orientation="Horizontal" 
+                               Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ProgressBar Width="100" Height="16" IsIndeterminate="True" Margin="0,0,5,0"/>
+                        <TextBlock Text="読み込み中..." FontSize="11" Foreground="Gray"/>
+                    </StackPanel>
+                </StackPanel>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ren:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(mkdir:*)",
+      "Bash(dotnet build)",
+      "Bash(ls:*)",
+      "Bash(dotnet clean:*)",
+      "Bash(taskkill:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet run)",
+      "Bash(dotnet:*)",
+      "Bash(start bin/Debug/net8.0-windows/win-x64/GadgetTools.exe)",
+      "Bash(./bin/Debug/net8.0-windows/win-x64/GadgetTools.exe)",
+      "Bash(powershell:*)",
+      "Bash(dir:*)"
+    ],
+    "deny": []
+  }
+}

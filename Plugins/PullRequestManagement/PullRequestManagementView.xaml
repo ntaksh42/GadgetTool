@@ -1,0 +1,335 @@
+<UserControl x:Class="GadgetTools.Plugins.PullRequestManagement.PullRequestManagementView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:GadgetTools.Plugins.PullRequestManagement"
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1200">
+    
+    <UserControl.Resources>
+        <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <local:BooleanInverseConverter x:Key="BooleanInverseConverter"/>
+        <local:BooleanToColorConverter x:Key="BooleanToColorConverter"/>
+        <local:BooleanToConnectionStatusConverter x:Key="BooleanToConnectionStatusConverter"/>
+        <local:ConflictStatusConverter x:Key="ConflictStatusConverter"/>
+    </UserControl.Resources>
+    
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Azure DevOps Configuration Panel -->
+        <GroupBox Grid.Row="0" Header="Azure DevOps Configuration" Margin="0,0,0,10">
+            <Grid Margin="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <Label Grid.Row="0" Grid.Column="0" Content="Organization:" VerticalAlignment="Center"/>
+                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Organization, Mode=OneWay}" Margin="5,0" IsReadOnly="True"
+                         ToolTip="Azure DevOps organization name (configured globally)"/>
+                
+                <Label Grid.Row="0" Grid.Column="2" Content="Project:" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding Project}" Margin="5,0"
+                         ToolTip="Project name in your Azure DevOps organization"/>
+                
+                <Label Grid.Row="1" Grid.Column="0" Content="Repository:" VerticalAlignment="Center"/>
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Repository}" Margin="5,0"
+                         ToolTip="Repository name"/>
+                
+                <Label Grid.Row="1" Grid.Column="2" Content="Global Config:" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal" Margin="5,0">
+                    <Ellipse Width="10" Height="10" Margin="0,0,5,0">
+                        <Ellipse.Fill>
+                            <SolidColorBrush Color="{Binding IsSharedConfigured, Mode=OneWay, Converter={StaticResource BooleanToColorConverter}}"/>
+                        </Ellipse.Fill>
+                    </Ellipse>
+                    <TextBlock Text="{Binding Organization, Mode=OneWay}" FontWeight="Medium" Margin="0,0,5,0"/>
+                    <TextBlock Text="(" Foreground="Gray"/>
+                    <TextBlock Text="{Binding IsSharedConfigured, Mode=OneWay, Converter={StaticResource BooleanToConnectionStatusConverter}}" Foreground="Gray"/>
+                    <TextBlock Text=")" Foreground="Gray"/>
+                    <Button Content="⚙ Global Settings" Margin="10,0,0,0" Click="GlobalSettings_Click" 
+                            ToolTip="Configure shared Azure DevOps settings"/>
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+        
+        <!-- Action Panel -->
+        <GroupBox Grid.Row="1" Header="Actions and Filters" Margin="0,0,0,10">
+            <Grid Margin="5">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Action Buttons -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                    <Button Content="Load Pull Requests" Padding="10,5" Command="{Binding LoadPullRequestsCommand}"/>
+                    <Button Content="Refresh" Padding="10,5" Margin="10,0,0,0" Command="{Binding RefreshCommand}"/>
+                    
+                    <!-- Quick Filters -->
+                    <Label Content="Quick Filters:" VerticalAlignment="Center" FontWeight="Bold" Margin="20,0,5,0"/>
+                    <Button Content="My PRs" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterMyPRsCommand}" 
+                            ToolTip="Show only PRs created by me"/>
+                    <Button Content="Active" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterActiveCommand}" 
+                            ToolTip="Show only active PRs"/>
+                    <Button Content="Needs Review" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterNeedsReviewCommand}" 
+                            ToolTip="Show PRs waiting for review"/>
+                    <Button Content="Approved" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterApprovedCommand}" 
+                            ToolTip="Show approved PRs"/>
+                    
+                    <Separator Margin="10,0"/>
+                    
+                    <Button Content="🎯 Advanced Filter" Padding="8,3" Margin="5,0" Command="{Binding ShowAdvancedFilterCommand}" 
+                            ToolTip="Open advanced filtering options"/>
+                    <Button Content="🔍 Global Search" Padding="8,3" Margin="5,0" Command="{Binding ShowGlobalSearchCommand}" 
+                            ToolTip="Search across all plugins"/>
+                </StackPanel>
+                
+                <!-- Basic Filters -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,5">
+                    <Label Content="Author:" VerticalAlignment="Center"/>
+                    <TextBox Text="{Binding AuthorFilter, UpdateSourceTrigger=PropertyChanged}" Width="100" Margin="5,0" 
+                             ToolTip="Filter by pull request author"/>
+                    <Label Content="Target:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <TextBox Text="{Binding TargetBranchFilter, UpdateSourceTrigger=PropertyChanged}" Width="100" Margin="5,0" 
+                             ToolTip="Filter by target branch"/>
+                    <Label Content="From Date:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <DatePicker SelectedDate="{Binding FromDate}" Width="100" Margin="5,0" 
+                               ToolTip="Filter pull requests from this date"/>
+                    <Label Content="Status:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Width="100" Margin="5,0"
+                              ToolTip="Filter by PR status"/>
+                </StackPanel>
+                
+                <!-- Advanced Filters -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Label Content="Search:" VerticalAlignment="Center"/>
+                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="5,0" 
+                             ToolTip="Search by Title or Created By"/>
+                    <Label Content="File Type:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <TextBox Text="{Binding FileExtensionFilter, UpdateSourceTrigger=PropertyChanged}" Width="80" Margin="5,0" 
+                             ToolTip="Filter by file extension (e.g., .cs, .js)"/>
+                    <Label Content="Min Changes:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <TextBox Text="{Binding MinChangesFilter, UpdateSourceTrigger=PropertyChanged}" Width="60" Margin="5,0" 
+                             ToolTip="Minimum number of file changes"/>
+                    
+                    <!-- Saved Searches -->
+                    <Label Content="Saved:" VerticalAlignment="Center" Margin="15,0,0,0"/>
+                    <ComboBox ItemsSource="{Binding SavedSearches}" SelectedItem="{Binding SelectedSavedSearch}" Width="120" Margin="5,0"
+                              ToolTip="Load saved search"/>
+                    <Button Content="Save" Padding="8,3" Margin="5,0" Command="{Binding SaveSearchCommand}" 
+                            ToolTip="Save current search"/>
+                    <Button Content="Delete" Padding="8,3" Margin="5,0" Command="{Binding DeleteSearchCommand}" 
+                            ToolTip="Delete selected saved search"/>
+                    
+                    <Button Content="Clear All" Padding="8,3" Margin="15,0,0,0" Command="{Binding ClearAllFiltersCommand}"/>
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+        
+        <!-- Main Content Area with Split View -->
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Pull Requests DataGrid -->
+            <DataGrid Grid.Column="0" ItemsSource="{Binding FilteredPullRequests}" 
+                      SelectedItem="{Binding SelectedPullRequest}"
+                      AutoGenerateColumns="False" IsReadOnly="True" 
+                      GridLinesVisibility="All" HeadersVisibility="Column"
+                      CanUserAddRows="False" CanUserDeleteRows="False" 
+                      CanUserReorderColumns="True" CanUserResizeColumns="True"
+                      CanUserSortColumns="True" SelectionMode="Single">
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="📋 Open in Browser" Command="{Binding OpenInBrowserCommand}"/>
+                        <MenuItem Header="📄 Copy URL" Command="{Binding CopyUrlCommand}"/>
+                        <MenuItem Header="📁 Copy PR ID" Command="{Binding CopyPrIdCommand}"/>
+                        <Separator/>
+                        <MenuItem Header="🔄 Refresh" Command="{Binding RefreshCommand}"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
+                    <DataGridTemplateColumn Header="Title" Width="300">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock>
+                                    <Hyperlink Click="TitleHyperlink_Click" Tag="{Binding}" 
+                                               Foreground="#0066CC" 
+                                               TextDecorations="Underline"
+                                               Cursor="Hand"
+                                               ToolTip="Click to open in browser">
+                                        <TextBlock Text="{Binding Title}" TextWrapping="Wrap"/>
+                                    </Hyperlink>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Status" Width="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding StatusIcon}" FontSize="14" Margin="0,0,5,0"/>
+                                    <TextBlock Text="{Binding Status}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Approval" Width="100">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding ApprovalIcon}" FontSize="14" Margin="0,0,5,0"/>
+                                    <TextBlock Text="{Binding ApprovalStatusShort}" VerticalAlignment="Center" FontSize="11"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Created By" Binding="{Binding CreatedBy}" Width="150"/>
+                    <DataGridTextColumn Header="Created Date" Width="120">
+                        <DataGridTextColumn.Binding>
+                            <Binding Path="CreatedDate" StringFormat="{}{0:yyyy/MM/dd}"/>
+                        </DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Source Branch" Binding="{Binding SourceBranch}" Width="150"/>
+                    <DataGridTextColumn Header="Target Branch" Binding="{Binding TargetBranch}" Width="150"/>
+                    <DataGridTextColumn Header="Modified Files" Binding="{Binding ModifiedFilesDisplay}" Width="300">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                <Setter Property="ToolTip" Value="{Binding ModifiedFilesDisplay}"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+            
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" 
+                          Background="LightGray" ResizeBehavior="PreviousAndNext"/>
+            
+            <!-- PR Detail Pane -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <StackPanel Margin="10" Visibility="{Binding IsDetailPaneVisible, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Pull Request Details" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
+                    
+                    <!-- PR Header -->
+                    <Border BorderBrush="LightGray" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SelectedPullRequest.Title}" FontWeight="Bold" FontSize="14" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                            <TextBlock Text="{Binding SelectedPullRequest.Id, StringFormat='#{0}'}" Foreground="Gray" Margin="0,0,0,5"/>
+                            <TextBlock Text="{Binding SelectedPullRequest.Status, StringFormat='Status: {0}'}" Margin="0,0,0,5"/>
+                            <TextBlock Text="{Binding SelectedPullRequest.CreatedBy, StringFormat='Created by: {0}'}" Margin="0,0,0,5"/>
+                            <TextBlock Text="{Binding SelectedPullRequest.CreatedDate, StringFormat='Created: {0:yyyy/MM/dd HH:mm}'}" Foreground="Gray"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Description -->
+                    <GroupBox Header="Description" Margin="0,0,0,10">
+                        <TextBlock Text="{Binding SelectedPullRequest.Description}" TextWrapping="Wrap" MaxHeight="100" 
+                                   Background="WhiteSmoke" Padding="5"/>
+                    </GroupBox>
+                    
+                    <!-- Branches -->
+                    <GroupBox Header="Branches" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SelectedPullRequest.SourceBranch, StringFormat='From: {0}'}" Margin="0,0,0,2"/>
+                            <TextBlock Text="↓" HorizontalAlignment="Center" Foreground="Gray"/>
+                            <TextBlock Text="{Binding SelectedPullRequest.TargetBranch, StringFormat='To: {0}'}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </GroupBox>
+                    
+                    <!-- Status Information -->
+                    <GroupBox Header="Status Information" Margin="0,0,0,10">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                <TextBlock Text="Build: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding SelectedPullRequest.BuildStatusIcon}"/>
+                                <TextBlock Text="{Binding SelectedPullRequest.BuildStatus}" Margin="5,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                <TextBlock Text="Conflicts: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding SelectedPullRequest.ConflictIcon}"/>
+                                <TextBlock Text="{Binding SelectedPullRequest.HasMergeConflicts, Converter={StaticResource ConflictStatusConverter}}" Margin="5,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Comments: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding SelectedPullRequest.CommentCount, StringFormat='💬 {0} total'}"/>
+                                <TextBlock Text="{Binding SelectedPullRequest.UnresolvedCommentCount, StringFormat=', {0} unresolved'}" Margin="5,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+                    
+                    <!-- Changes Summary -->
+                    <GroupBox Header="Changes" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SelectedPullRequest.ChangesSummary}" Margin="0,0,0,5"/>
+                            <TextBlock Text="{Binding SelectedPullRequest.ModifiedFilesDisplay}" TextWrapping="Wrap" Foreground="Gray" FontSize="12"/>
+                        </StackPanel>
+                    </GroupBox>
+                    
+                    <!-- Reviewers -->
+                    <GroupBox Header="Reviewers" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SelectedPullRequest.ApprovalStatus}" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <TextBlock Text="{Binding SelectedPullRequest.ReviewersDisplay}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </GroupBox>
+                    
+                    <!-- Work Items -->
+                    <GroupBox Header="Related Work Items" Margin="0,0,0,10">
+                        <TextBlock Text="{Binding SelectedPullRequest.WorkItemsDisplay}" TextWrapping="Wrap"/>
+                    </GroupBox>
+                    
+                    <!-- Actions -->
+                    <GroupBox Header="Actions" Margin="0,0,0,10">
+                        <StackPanel>
+                            <Button Content="Open in Browser" Padding="5" Margin="0,0,0,5" 
+                                    Command="{Binding OpenInBrowserCommand}"/>
+                            <Button Content="Copy URL" Padding="5" 
+                                    Command="{Binding CopyUrlCommand}"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="3">
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="8" Height="8" Margin="0,0,5,0">
+                        <Ellipse.Fill>
+                            <SolidColorBrush Color="{Binding IsConnected, Mode=OneWay, Converter={StaticResource BooleanToColorConverter}}"/>
+                        </Ellipse.Fill>
+                    </Ellipse>
+                    <TextBlock Text="{Binding StatusMessage, Mode=OneWay}"/>
+                </StackPanel>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right" Visibility="{Binding IsLoading, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal">
+                    <ProgressBar Width="100" Height="16" IsIndeterminate="True" Margin="0,0,5,0"/>
+                    <TextBlock Text="Loading..." FontSize="11"/>
+                </StackPanel>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</UserControl>
