@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:converters="clr-namespace:GadgetTools.Converters"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              mc:Ignorable="d" 
              d:DesignHeight="650" d:DesignWidth="700">
     
@@ -104,102 +105,130 @@
         
         <!-- 結果表示 -->
         <GroupBox Grid.Row="2" Header="Results" Margin="0,0,0,10">
-            <TabControl>
-                <TabItem Header="Table View">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="3*" MinWidth="400"/>
+                    <ColumnDefinition Width="5"/>
+                    <ColumnDefinition Width="2*" MinWidth="300"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- 左側: テーブル表示 -->
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- フィルタ機能 -->
+                    <Grid Grid.Row="0" Margin="5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Filter:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox Grid.Column="1" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Enter text to filter work items (searches in ID, Type, Title, State, Assigned To)"/>
+                        <Button Grid.Column="2" Content="Clear" Width="50" 
+                                Margin="5,0,0,0" Command="{Binding ClearFilterCommand}"/>
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                            <!-- エラー表示 -->
+                            <Border Background="#FFEBEE" BorderBrush="#F44336" BorderThickness="1" 
+                                    Padding="5" CornerRadius="3" Margin="0,0,10,0"
+                                    Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="{Binding ErrorMessage}" Foreground="#D32F2F" FontWeight="Medium" FontSize="11"/>
+                            </Border>
+                            
+                            <!-- 進行状況 -->
+                            <StackPanel Orientation="Horizontal" 
+                                       Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <ProgressBar Width="80" Height="14" IsIndeterminate="True" Margin="0,0,5,0"/>
+                                <TextBlock Text="Loading..." FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="Gray" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                    
+                    <!-- ハイライト設定 -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
+                        <CheckBox Content="Highlight stale items" IsChecked="{Binding EnableHighlight}" Margin="0,0,10,0"/>
+                        <TextBlock Text="Days since last update:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox Text="{Binding HighlightDays}" Width="50" ToolTip="Number of days to consider an item stale"/>
+                    </StackPanel>
+                    
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding WorkItemsView}" 
+                              SelectedItem="{Binding SelectedWorkItem}"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              GridLinesVisibility="All" HeadersVisibility="All" CanUserAddRows="False"
+                              CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeColumns="True"
+                              CanUserSortColumns="True" SelectionMode="Single" SelectionUnit="FullRow"
+                              MouseDoubleClick="DataGrid_MouseDoubleClick"
+                              KeyDown="DataGrid_KeyDown">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <MultiBinding Converter="{StaticResource HighlightConverter}">
+                                            <Binding Path="."/>
+                                            <Binding Path="DataContext.EnableHighlight" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                            <Binding Path="DataContext.HighlightDays" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                        </MultiBinding>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
+                            <DataGridTextColumn Header="Type" Binding="{Binding Fields.WorkItemType}" Width="80"/>
+                            <DataGridTextColumn Header="Title" Binding="{Binding Fields.Title}" Width="*" MinWidth="200"/>
+                            <DataGridTextColumn Header="State" Binding="{Binding Fields.State}" Width="80"/>
+                            <DataGridTextColumn Header="Assigned To" Binding="{Binding Fields.AssignedTo.DisplayName}" Width="120"/>
+                            <DataGridTextColumn Header="Priority" Binding="{Binding Fields.Priority}" Width="60"/>
+                            <DataGridTextColumn Header="Created" Binding="{Binding Fields.CreatedDate, StringFormat=yyyy-MM-dd}" Width="100"/>
+                            <DataGridTextColumn Header="Last Updated" Binding="{Binding Fields.ChangedDate, StringFormat=yyyy-MM-dd HH:mm}" Width="140" 
+                                                SortDirection="Descending">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="ToolTip" Value="{Binding Fields.ChangedDate, StringFormat=yyyy年MM月dd日 HH:mm:ss}"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+                
+                <!-- スプリッター -->
+                <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" 
+                              Background="#E0E0E0" ResizeBehavior="PreviousAndNext"/>
+                
+                <!-- 右側: チケットプレビュー -->
+                <GroupBox Grid.Column="2" Header="📋 Ticket Preview" Margin="5,0,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         
-                        <!-- フィルタ機能 -->
-                        <Grid Grid.Row="0" Margin="5">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Filter:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <TextBox Grid.Column="1" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Enter text to filter work items (searches in ID, Type, Title, State, Assigned To)"/>
-                            <Button Grid.Column="2" Content="Clear" Width="50" 
-                                    Margin="5,0,0,0" Command="{Binding ClearFilterCommand}"/>
-                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
-                                <!-- エラー表示 -->
-                                <Border Background="#FFEBEE" BorderBrush="#F44336" BorderThickness="1" 
-                                        Padding="5" CornerRadius="3" Margin="0,0,10,0"
-                                        Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#D32F2F" FontWeight="Medium" FontSize="11"/>
-                                </Border>
-                                
-                                <!-- 進行状況 -->
-                                <StackPanel Orientation="Horizontal" 
-                                           Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <ProgressBar Width="80" Height="14" IsIndeterminate="True" Margin="0,0,5,0"/>
-                                    <TextBlock Text="Loading..." FontSize="11" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                
-                                <TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="Gray" VerticalAlignment="Center"/>
+                        <!-- プレビューヘッダー -->
+                        <Border Grid.Row="0" Background="#E3F2FD" BorderBrush="#1976D2" BorderThickness="0,0,0,2" 
+                                Padding="10,5" Margin="10,10,10,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="💡 " FontWeight="Bold" Foreground="#1976D2"/>
+                                <TextBlock Text="Select a ticket to view details" 
+                                           Foreground="#424242" FontSize="11"/>
                             </StackPanel>
-                        </Grid>
+                        </Border>
                         
-                        <!-- ハイライト設定 -->
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
-                            <CheckBox Content="Highlight stale items" IsChecked="{Binding EnableHighlight}" Margin="0,0,10,0"/>
-                            <TextBlock Text="Days since last update:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <TextBox Text="{Binding HighlightDays}" Width="50" ToolTip="Number of days to consider an item stale"/>
-                        </StackPanel>
-                        
-                        <DataGrid Grid.Row="2" ItemsSource="{Binding WorkItemsView}" 
-                                  SelectedItem="{Binding SelectedWorkItem}"
-                                  AutoGenerateColumns="False" IsReadOnly="True"
-                                  GridLinesVisibility="All" HeadersVisibility="All" CanUserAddRows="False"
-                                  CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeColumns="True"
-                                  CanUserSortColumns="True" SelectionMode="Extended" SelectionUnit="FullRow"
-                                  MouseDoubleClick="DataGrid_MouseDoubleClick"
-                                  KeyDown="DataGrid_KeyDown">
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow">
-                                    <Setter Property="Background">
-                                        <Setter.Value>
-                                            <MultiBinding Converter="{StaticResource HighlightConverter}">
-                                                <Binding Path="."/>
-                                                <Binding Path="DataContext.EnableHighlight" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
-                                                <Binding Path="DataContext.HighlightDays" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
-                                            </MultiBinding>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </DataGrid.RowStyle>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
-                                <DataGridTextColumn Header="Type" Binding="{Binding Fields.WorkItemType}" Width="80"/>
-                                <DataGridTextColumn Header="Title" Binding="{Binding Fields.Title}" Width="300"/>
-                                <DataGridTextColumn Header="State" Binding="{Binding Fields.State}" Width="80"/>
-                                <DataGridTextColumn Header="Assigned To" Binding="{Binding Fields.AssignedTo.DisplayName}" Width="120"/>
-                                <DataGridTextColumn Header="Priority" Binding="{Binding Fields.Priority}" Width="60"/>
-                                <DataGridTextColumn Header="Created" Binding="{Binding Fields.CreatedDate, StringFormat=yyyy-MM-dd}" Width="100"/>
-                                <DataGridTextColumn Header="Last Updated" Binding="{Binding Fields.ChangedDate, StringFormat=yyyy-MM-dd HH:mm}" Width="140" 
-                                                    SortDirection="Descending">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="ToolTip" Value="{Binding Fields.ChangedDate, StringFormat=yyyy年MM月dd日 HH:mm:ss}"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        <wv2:WebView2 Grid.Row="1" x:Name="PreviewWebView" 
+                                      Margin="10,5,10,10"
+                                      MinHeight="200"
+                                      NavigationCompleted="PreviewWebView_NavigationCompleted"/>
                     </Grid>
-                </TabItem>
-                <TabItem Header="Markdown Preview">
-                    <ScrollViewer>
-                        <TextBox Text="{Binding MarkdownPreview}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
-                                 VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12" Background="#F5F5F5"/>
-                    </ScrollViewer>
-                </TabItem>
-            </TabControl>
+                </GroupBox>
+            </Grid>
         </GroupBox>
         
         <!-- 出力設定 -->

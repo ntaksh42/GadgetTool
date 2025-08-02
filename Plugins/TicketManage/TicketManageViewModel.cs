@@ -29,6 +29,7 @@ namespace GadgetTools.Plugins.TicketManage
         private bool _enableHighlight = true;
         private string _filterText = string.Empty;
         private string _markdownPreview = string.Empty;
+        private string _htmlPreview = string.Empty;
         private WorkItem? _selectedWorkItem;
         private bool _isConnected = false;
 
@@ -143,14 +144,33 @@ namespace GadgetTools.Plugins.TicketManage
             set => SetProperty(ref _markdownPreview, value);
         }
 
+        public string HtmlPreview
+        {
+            get => _htmlPreview;
+            set
+            {
+                if (SetProperty(ref _htmlPreview, value))
+                {
+                    System.Diagnostics.Debug.WriteLine($"HtmlPreview updated. Length: {value?.Length ?? 0}");
+                }
+            }
+        }
+
         public WorkItem? SelectedWorkItem
         {
             get => _selectedWorkItem;
             set
             {
-                if (SetProperty(ref _selectedWorkItem, value) && value != null)
+                if (SetProperty(ref _selectedWorkItem, value))
                 {
-                    ShowWorkItemDetail(value);
+                    if (value != null)
+                    {
+                        ShowWorkItemDetail(value);
+                    }
+                    else
+                    {
+                        ClearWorkItemDetail();
+                    }
                 }
             }
         }
@@ -187,6 +207,20 @@ namespace GadgetTools.Plugins.TicketManage
             _workItemsViewSource.Source = WorkItems;
             _workItemsViewSource.Filter += OnWorkItemsFilter;
 
+            // 初期プレビューメッセージを設定
+            MarkdownPreview = "ワークアイテムをクエリしてチケットを取得してください。\n\nPlease query work items to retrieve tickets.";
+            try
+            {
+                HtmlPreview = TicketHtmlService.GenerateEmptyStateHtml();
+                System.Diagnostics.Debug.WriteLine("Initial HTML preview set using TicketHtmlService");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting initial HTML preview: {ex.Message}");
+                SetError($"プレビューの初期化に失敗しました: {ex.Message}");
+                HtmlPreview = TicketHtmlService.GenerateEmptyStateHtml(); // Fallback to empty state
+            }
+            
             // 設定を読み込み
             LoadSettings();
             
@@ -353,34 +387,109 @@ namespace GadgetTools.Plugins.TicketManage
             }
         }
 
-        private void ShowWorkItemDetail(WorkItem workItem)
+        private async void ShowWorkItemDetail(WorkItem workItem)
         {
-            var converter = new AzureDevOpsMarkdownConverter();
-            var detailMarkdown = converter.ConvertWorkItemsToMarkdown(
-                new List<WorkItem> { workItem },
-                $"Work Item #{workItem.Id} Details"
-            );
-            MarkdownPreview = detailMarkdown;
+            System.Diagnostics.Debug.WriteLine($"ShowWorkItemDetail called for Work Item #{workItem.Id}");
+            
+            try
+            {
+                // Generate cache key based on work item and last modified date
+                var cacheKey = HtmlContentCache.GenerateCacheKey(workItem.Id, workItem.Fields.ChangedDate);
+                
+                // Try to get cached HTML content first
+                if (HtmlContentCache.Instance.TryGetCachedContent(cacheKey, out var cachedHtml))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Using cached HTML for Work Item #{workItem.Id}");
+                    HtmlPreview = cachedHtml ?? "";
+                }
+                else
+                {
+                    // Generate HTML asynchronously for better performance
+                    var htmlContent = await Task.Run(() => TicketHtmlService.GenerateWorkItemHtml(workItem));
+                    
+                    // Cache the generated content
+                    HtmlContentCache.Instance.CacheContent(cacheKey, htmlContent);
+                    System.Diagnostics.Debug.WriteLine($"Generated and cached HTML for Work Item #{workItem.Id}, length: {htmlContent?.Length ?? 0}");
+                    
+                    HtmlPreview = htmlContent;
+                }
+
+                // Generate Markdown for traditional preview (not cached as it's less expensive)
+                var converter = new AzureDevOpsMarkdownConverter();
+                var detailMarkdown = converter.ConvertWorkItemsToMarkdown(
+                    new List<WorkItem> { workItem },
+                    $"Work Item #{workItem.Id} - {workItem.Fields.Title}"
+                );
+                
+                MarkdownPreview = detailMarkdown ?? "";
+            }
+            catch (Exception ex)
+            {
+                var errorMessage = $"チケット詳細の表示に失敗しました: {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"Error in ShowWorkItemDetail: {ex.Message}");
+                SetError(errorMessage);
+                
+                // Fallback to basic information
+                MarkdownPreview = $"# Work Item #{workItem.Id}\n\n**Title:** {workItem.Fields.Title}\n\n**Error:** {errorMessage}";
+                HtmlPreview = TicketHtmlService.GenerateEmptyStateHtml();
+            }
         }
 
-        private void GenerateMarkdownPreview()
+        private void ClearWorkItemDetail()
         {
-            if (WorkItems.Count == 0)
+            try
             {
-                MarkdownPreview = "";
-                return;
+                if (WorkItems.Count > 0)
+                {
+                    GenerateMarkdownPreview();
+                }
+                else
+                {
+                    MarkdownPreview = "チケットを選択すると、ここに詳細が表示されます。\n\nSelect a ticket to view its details here.";
+                    HtmlPreview = TicketHtmlService.GenerateEmptyStateHtml();
+                }
             }
-
-            var converter = new AzureDevOpsMarkdownConverter();
-            var title = $"{Organization}/{Project} Work Items";
-
-            if (DetailedMarkdown)
+            catch (Exception ex)
             {
-                MarkdownPreview = converter.ConvertWorkItemsToMarkdown(_allWorkItems, title);
+                System.Diagnostics.Debug.WriteLine($"Error in ClearWorkItemDetail: {ex.Message}");
+                SetError($"プレビューのクリアに失敗しました: {ex.Message}");
+                HtmlPreview = TicketHtmlService.GenerateEmptyStateHtml();
             }
-            else
+        }
+
+        private async void GenerateMarkdownPreview()
+        {
+            try
             {
-                MarkdownPreview = converter.ConvertToTable(_allWorkItems);
+                if (WorkItems.Count == 0)
+                {
+                    MarkdownPreview = "";
+                    HtmlPreview = TicketHtmlService.GenerateEmptyStateHtml();
+                    return;
+                }
+
+                var converter = new AzureDevOpsMarkdownConverter();
+                var title = $"{Organization}/{Project} Work Items";
+
+                if (DetailedMarkdown)
+                {
+                    MarkdownPreview = converter.ConvertWorkItemsToMarkdown(_allWorkItems, title);
+                }
+                else
+                {
+                    MarkdownPreview = converter.ConvertToTable(_allWorkItems);
+                }
+                
+                // Generate HTML list view asynchronously
+                var htmlContent = await Task.Run(() => 
+                    TicketHtmlService.GenerateListViewHtml(_allWorkItems, title));
+                HtmlPreview = htmlContent;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in GenerateMarkdownPreview: {ex.Message}");
+                SetError($"プレビューの生成に失敗しました: {ex.Message}");
+                HtmlPreview = TicketHtmlService.GenerateEmptyStateHtml();
             }
         }
 
@@ -494,6 +603,17 @@ namespace GadgetTools.Plugins.TicketManage
         {
             // 共通設定のイベントを解除
             _configService.ConfigurationChanged -= OnSharedConfigChanged;
+            
+            // HTMLキャッシュをクリーンアップ
+            try
+            {
+                HtmlContentCache.Instance.RemoveExpiredEntries();
+                System.Diagnostics.Debug.WriteLine("HTML cache cleanup completed");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"HTML cache cleanup error: {ex.Message}");
+            }
             
             // 設定を保存
             try
