@@ -6,13 +6,20 @@
              StartupUri="MainWindow.xaml"
              DispatcherUnhandledException="Application_DispatcherUnhandledException">
     <Application.Resources>
-        <!-- Value Converters -->
-        <converters:BooleanInverseConverter x:Key="BooleanInverseConverter"/>
-        <converters:BooleanToVisibilityInverseConverter x:Key="BooleanToVisibilityInverseConverter"/>
-        <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
-        <converters:BooleanToColorConverter x:Key="BooleanToColorConverter"/>
-        <converters:BooleanToConnectionStatusConverter x:Key="BooleanToConnectionStatusConverter"/>
-        <converters2:WorkItemHighlightConverter x:Key="HighlightConverter"/>
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <ResourceDictionary>
+            <!-- Merged Dictionaries -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Core/Styles/FilterableDataGridStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- Value Converters -->
+            <converters:BooleanInverseConverter x:Key="BooleanInverseConverter"/>
+            <converters:BooleanToVisibilityInverseConverter x:Key="BooleanToVisibilityInverseConverter"/>
+            <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
+            <converters:BooleanToColorConverter x:Key="BooleanToColorConverter"/>
+            <converters:BooleanToConnectionStatusConverter x:Key="BooleanToConnectionStatusConverter"/>
+            <converters2:WorkItemHighlightConverter x:Key="HighlightConverter"/>
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

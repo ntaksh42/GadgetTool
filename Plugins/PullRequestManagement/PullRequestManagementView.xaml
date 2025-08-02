@@ -13,141 +13,201 @@
         <local:BooleanToColorConverter x:Key="BooleanToColorConverter"/>
         <local:BooleanToConnectionStatusConverter x:Key="BooleanToConnectionStatusConverter"/>
         <local:ConflictStatusConverter x:Key="ConflictStatusConverter"/>
+        
+        <!-- Expanderのカスタムスタイル -->
+        <Style TargetType="Expander">
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="BorderBrush" Value="#D1D1D1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        
+        <Style TargetType="Border" x:Key="ExpanderContentBorder">
+            <Setter Property="BorderBrush" Value="#E1E1E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="#FAFAFA"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="0,5,0,0"/>
+        </Style>
     </UserControl.Resources>
     
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="*" MinHeight="400"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
-        <!-- Azure DevOps Configuration Panel -->
-        <GroupBox Grid.Row="0" Header="Azure DevOps Configuration" Margin="0,0,0,10">
-            <Grid Margin="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                
-                <Label Grid.Row="0" Grid.Column="0" Content="Organization:" VerticalAlignment="Center"/>
-                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Organization, Mode=OneWay}" Margin="5,0" IsReadOnly="True"
-                         ToolTip="Azure DevOps organization name (configured globally)"/>
-                
-                <Label Grid.Row="0" Grid.Column="2" Content="Project:" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding Project}" Margin="5,0"
-                         ToolTip="Project name in your Azure DevOps organization"/>
-                
-                <Label Grid.Row="1" Grid.Column="0" Content="Repository:" VerticalAlignment="Center"/>
-                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Repository}" Margin="5,0"
-                         ToolTip="Repository name"/>
-                
-                <Label Grid.Row="1" Grid.Column="2" Content="Global Config:" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal" Margin="5,0">
-                    <Ellipse Width="10" Height="10" Margin="0,0,5,0">
-                        <Ellipse.Fill>
-                            <SolidColorBrush Color="{Binding IsSharedConfigured, Mode=OneWay, Converter={StaticResource BooleanToColorConverter}}"/>
-                        </Ellipse.Fill>
-                    </Ellipse>
-                    <TextBlock Text="{Binding Organization, Mode=OneWay}" FontWeight="Medium" Margin="0,0,5,0"/>
-                    <TextBlock Text="(" Foreground="Gray"/>
-                    <TextBlock Text="{Binding IsSharedConfigured, Mode=OneWay, Converter={StaticResource BooleanToConnectionStatusConverter}}" Foreground="Gray"/>
-                    <TextBlock Text=")" Foreground="Gray"/>
-                    <Button Content="⚙ Global Settings" Margin="10,0,0,0" Click="GlobalSettings_Click" 
-                            ToolTip="Configure shared Azure DevOps settings"/>
-                </StackPanel>
-            </Grid>
-        </GroupBox>
+        <!-- Azure DevOps Configuration -->
+        <Expander Grid.Row="0" Header="Azure DevOps Configuration" IsExpanded="False">
+            <Border Style="{StaticResource ExpanderContentBorder}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- 共通設定ステータス -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Global Config:" VerticalAlignment="Center" Margin="0,0,10,5"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,5">
+                        <Ellipse Width="10" Height="10" Margin="0,0,5,0">
+                            <Ellipse.Fill>
+                                <SolidColorBrush Color="{Binding IsSharedConfigured, Mode=OneWay, Converter={StaticResource BooleanToColorConverter}}"/>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <TextBlock Text="{Binding Organization, Mode=OneWay}" FontWeight="Medium" Margin="0,0,5,0"/>
+                        <TextBlock Text="(" Foreground="Gray"/>
+                        <TextBlock Text="{Binding IsSharedConfigured, Mode=OneWay, Converter={StaticResource BooleanToConnectionStatusConverter}}" Foreground="Gray"/>
+                        <TextBlock Text=")" Foreground="Gray"/>
+                    </StackPanel>
+                    <Button Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2" Content="⚙ Global Settings" Width="120" HorizontalAlignment="Right" Margin="5,0,0,5" 
+                            Click="GlobalSettings_Click" ToolTip="Configure shared Azure DevOps settings"/>
+                    
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Project:" VerticalAlignment="Center" Margin="0,0,10,5"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Project}" Margin="0,0,10,5"
+                             ToolTip="Project name in your Azure DevOps organization"/>
+                    
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Repository:" VerticalAlignment="Center" Margin="0,0,10,5"/>
+                    <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Repository}" Margin="0,0,0,5"
+                             ToolTip="Repository name"/>
+                </Grid>
+            </Border>
+        </Expander>
         
-        <!-- Action Panel -->
-        <GroupBox Grid.Row="1" Header="Actions and Filters" Margin="0,0,0,10">
-            <Grid Margin="5">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                
-                <!-- Action Buttons -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
-                    <Button Content="Load Pull Requests" Padding="10,5" Command="{Binding LoadPullRequestsCommand}"/>
-                    <Button Content="Refresh" Padding="10,5" Margin="10,0,0,0" Command="{Binding RefreshCommand}"/>
+        <!-- Actions and Filters -->
+        <Expander Grid.Row="1" Header="Actions and Filters" IsExpanded="True">
+            <Border Style="{StaticResource ExpanderContentBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     
-                    <!-- Quick Filters -->
-                    <Label Content="Quick Filters:" VerticalAlignment="Center" FontWeight="Bold" Margin="20,0,5,0"/>
-                    <Button Content="My PRs" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterMyPRsCommand}" 
-                            ToolTip="Show only PRs created by me"/>
-                    <Button Content="Active" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterActiveCommand}" 
-                            ToolTip="Show only active PRs"/>
-                    <Button Content="Needs Review" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterNeedsReviewCommand}" 
-                            ToolTip="Show PRs waiting for review"/>
-                    <Button Content="Approved" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterApprovedCommand}" 
-                            ToolTip="Show approved PRs"/>
+                    <!-- Action Buttons -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button Content="Load Pull Requests" Padding="10,5" Command="{Binding LoadPullRequestsCommand}"/>
+                        <Button Content="Refresh" Padding="10,5" Margin="10,0,0,0" Command="{Binding RefreshCommand}"/>
+                        
+                        <!-- Quick Filters -->
+                        <TextBlock Text="Quick Filters:" VerticalAlignment="Center" FontWeight="Bold" Margin="20,0,5,0"/>
+                        <Button Content="My PRs" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterMyPRsCommand}" 
+                                ToolTip="Show only PRs created by me"/>
+                        <Button Content="Active" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterActiveCommand}" 
+                                ToolTip="Show only active PRs"/>
+                        <Button Content="Needs Review" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterNeedsReviewCommand}" 
+                                ToolTip="Show PRs waiting for review"/>
+                        <Button Content="Approved" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterApprovedCommand}" 
+                                ToolTip="Show approved PRs"/>
+                        
+                        <Separator Margin="10,0"/>
+                        
+                        <Button Content="🎯 Advanced" Padding="8,3" Margin="5,0" Command="{Binding ShowAdvancedFilterCommand}" 
+                                ToolTip="Open advanced filtering options"/>
+                        <Button Content="🔍 Global" Padding="8,3" Margin="5,0" Command="{Binding ShowGlobalSearchCommand}" 
+                                ToolTip="Search across all plugins"/>
+                    </StackPanel>
                     
-                    <Separator Margin="10,0"/>
+                    <!-- Basic Filters -->
+                    <Grid Grid.Row="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Column="0" Text="Author:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox Grid.Column="1" Text="{Binding AuthorFilter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0" 
+                                 ToolTip="Filter by pull request author"/>
+                        
+                        <TextBlock Grid.Column="2" Text="Target:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox Grid.Column="3" Text="{Binding TargetBranchFilter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0" 
+                                 ToolTip="Filter by target branch"/>
+                        
+                        <TextBlock Grid.Column="4" Text="From Date:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <DatePicker Grid.Column="5" SelectedDate="{Binding FromDate}" Margin="0,0,10,0" 
+                                   ToolTip="Filter pull requests from this date"/>
+                        
+                        <TextBlock Grid.Column="6" Text="Status:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox Grid.Column="7" ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" 
+                                  ToolTip="Filter by PR status"/>
+                    </Grid>
                     
-                    <Button Content="🎯 Advanced Filter" Padding="8,3" Margin="5,0" Command="{Binding ShowAdvancedFilterCommand}" 
-                            ToolTip="Open advanced filtering options"/>
-                    <Button Content="🔍 Global Search" Padding="8,3" Margin="5,0" Command="{Binding ShowGlobalSearchCommand}" 
-                            ToolTip="Search across all plugins"/>
-                </StackPanel>
-                
-                <!-- Basic Filters -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,5">
-                    <Label Content="Author:" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding AuthorFilter, UpdateSourceTrigger=PropertyChanged}" Width="100" Margin="5,0" 
-                             ToolTip="Filter by pull request author"/>
-                    <Label Content="Target:" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                    <TextBox Text="{Binding TargetBranchFilter, UpdateSourceTrigger=PropertyChanged}" Width="100" Margin="5,0" 
-                             ToolTip="Filter by target branch"/>
-                    <Label Content="From Date:" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                    <DatePicker SelectedDate="{Binding FromDate}" Width="100" Margin="5,0" 
-                               ToolTip="Filter pull requests from this date"/>
-                    <Label Content="Status:" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                    <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Width="100" Margin="5,0"
-                              ToolTip="Filter by PR status"/>
-                </StackPanel>
-                
-                <!-- Advanced Filters -->
-                <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Label Content="Search:" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="5,0" 
-                             ToolTip="Search by Title or Created By"/>
-                    <Label Content="File Type:" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                    <TextBox Text="{Binding FileExtensionFilter, UpdateSourceTrigger=PropertyChanged}" Width="80" Margin="5,0" 
-                             ToolTip="Filter by file extension (e.g., .cs, .js)"/>
-                    <Label Content="Min Changes:" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                    <TextBox Text="{Binding MinChangesFilter, UpdateSourceTrigger=PropertyChanged}" Width="60" Margin="5,0" 
-                             ToolTip="Minimum number of file changes"/>
-                    
-                    <!-- Saved Searches -->
-                    <Label Content="Saved:" VerticalAlignment="Center" Margin="15,0,0,0"/>
-                    <ComboBox ItemsSource="{Binding SavedSearches}" SelectedItem="{Binding SelectedSavedSearch}" Width="120" Margin="5,0"
-                              ToolTip="Load saved search"/>
-                    <Button Content="Save" Padding="8,3" Margin="5,0" Command="{Binding SaveSearchCommand}" 
-                            ToolTip="Save current search"/>
-                    <Button Content="Delete" Padding="8,3" Margin="5,0" Command="{Binding DeleteSearchCommand}" 
-                            ToolTip="Delete selected saved search"/>
-                    
-                    <Button Content="Clear All" Padding="8,3" Margin="15,0,0,0" Command="{Binding ClearAllFiltersCommand}"/>
-                </StackPanel>
-            </Grid>
-        </GroupBox>
+                    <!-- Advanced Filters -->
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Column="0" Text="Search:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox Grid.Column="1" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0" 
+                                 ToolTip="Search by Title or Created By"/>
+                        
+                        <TextBlock Grid.Column="2" Text="File Type:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox Grid.Column="3" Text="{Binding FileExtensionFilter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0" 
+                                 ToolTip="Filter by file extension (e.g., .cs, .js)"/>
+                        
+                        <TextBlock Grid.Column="4" Text="Min Changes:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox Grid.Column="5" Text="{Binding MinChangesFilter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0" 
+                                 ToolTip="Minimum number of file changes"/>
+                        
+                        <Button Grid.Column="6" Content="Clear All" Padding="8,3" Command="{Binding ClearAllFiltersCommand}"/>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Expander>
         
-        <!-- Main Content Area with Split View -->
-        <Grid Grid.Row="2" Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2*"/>
-                <ColumnDefinition Width="5"/>
-                <ColumnDefinition Width="1*"/>
-            </Grid.ColumnDefinitions>
+        <!-- Results and Details -->
+        <Border Grid.Row="2" BorderBrush="#D1D1D1" BorderThickness="1" Background="White" CornerRadius="4" Margin="0,0,0,10">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Background="#F5F5F5" BorderBrush="#D1D1D1" BorderThickness="0,0,0,1" Padding="15,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Pull Requests and Details" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="▲ Collapse All" x:Name="CollapseAllButton" 
+                                    Click="CollapseAll_Click" Margin="0,0,5,0" 
+                                    Padding="8,3" FontSize="11" 
+                                    ToolTip="Collapse all sections to maximize results area"/>
+                            <Button Content="▼ Expand All" x:Name="ExpandAllButton" 
+                                    Click="ExpandAll_Click" 
+                                    Padding="8,3" FontSize="11"
+                                    ToolTip="Expand all sections"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <Grid Margin="15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3*" MinWidth="500"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="2*" MinWidth="350"/>
+                    </Grid.ColumnDefinitions>
             
             <!-- Pull Requests DataGrid -->
             <DataGrid Grid.Column="0" ItemsSource="{Binding FilteredPullRequests}" 
@@ -310,10 +370,12 @@
                     </GroupBox>
                 </StackPanel>
             </ScrollViewer>
-        </Grid>
+                </Grid>
+            </DockPanel>
+        </Border>
         
         <!-- Status Bar -->
-        <StatusBar Grid.Row="3">
+        <StatusBar Grid.Row="4">
             <StatusBarItem>
                 <StackPanel Orientation="Horizontal">
                     <Ellipse Width="8" Height="8" Margin="0,0,5,0">

@@ -172,13 +172,21 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="Filter:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <TextBox Grid.Column="1" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                                  ToolTip="Enter text to filter work items (searches in ID, Type, Title, State, Assigned To)"/>
                         <Button Grid.Column="2" Content="Clear" Width="50" 
                                 Margin="5,0,0,0" Command="{Binding ClearFilterCommand}"/>
-                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <Button Grid.Column="3" Content="Clear Excel Filters" Width="120" 
+                                Margin="5,0,0,0" Command="{Binding ClearExcelFiltersCommand}"
+                                ToolTip="Clear all column filters"/>
+                        <Button Grid.Column="4" Content="Columns..." Width="80" 
+                                Margin="5,0,0,0" Command="{Binding ShowColumnVisibilityCommand}"
+                                ToolTip="Show/hide columns"/>
+                        <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
                             <!-- エラー表示 -->
                             <Border Background="#FFEBEE" BorderBrush="#F44336" BorderThickness="1" 
                                     Padding="5" CornerRadius="3" Margin="0,0,10,0"
@@ -211,7 +219,9 @@
                               CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeColumns="True"
                               CanUserSortColumns="True" SelectionMode="Single" SelectionUnit="FullRow"
                               MouseDoubleClick="DataGrid_MouseDoubleClick"
-                              KeyDown="DataGrid_KeyDown">
+                              KeyDown="DataGrid_KeyDown"
+                              Style="{StaticResource FilterableDataGridStyle}"
+                              x:Name="WorkItemsDataGrid">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
                                 <Setter Property="Background">

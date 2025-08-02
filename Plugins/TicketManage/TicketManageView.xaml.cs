@@ -1,10 +1,13 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.ComponentModel;
 using System.Windows.Media;
 using GadgetTools.Core.Views;
+using GadgetTools.Core.Controls;
+using GadgetTools.Core.ViewModels;
 using GadgetTools.Models;
 
 namespace GadgetTools.Plugins.TicketManage
@@ -19,6 +22,7 @@ namespace GadgetTools.Plugins.TicketManage
         private bool _disposed = false;
         private string _lastNavigatedContent = "";
         private bool _isNavigating = false;
+        private Popup? _currentFilterPopup;
 
         public TicketManageView()
         {
@@ -35,6 +39,8 @@ namespace GadgetTools.Plugins.TicketManage
             if (_viewModel != null)
             {
                 _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+                _viewModel.ColumnFilterRequested -= ViewModel_ColumnFilterRequested;
+                _viewModel.ShowColumnVisibilityRequested -= ViewModel_ShowColumnVisibilityRequested;
                 System.Diagnostics.Debug.WriteLine("Unsubscribed from old ViewModel PropertyChanged");
             }
 
@@ -42,6 +48,8 @@ namespace GadgetTools.Plugins.TicketManage
             if (_viewModel != null)
             {
                 _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+                _viewModel.ColumnFilterRequested += ViewModel_ColumnFilterRequested;
+                _viewModel.ShowColumnVisibilityRequested += ViewModel_ShowColumnVisibilityRequested;
                 System.Diagnostics.Debug.WriteLine($"ViewModel connected to TicketManageView. WebView initialized: {_webViewInitialized}");
                 
                 // WebViewが既に初期化されている場合は初期コンテンツを設定
@@ -60,6 +68,9 @@ namespace GadgetTools.Plugins.TicketManage
         private async void TicketManageView_Loaded(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Debug.WriteLine("TicketManageView loaded");
+            
+            // DataGridの列の表示/非表示機能を初期化
+            InitializeColumnVisibility();
             
             // WebView2の初期化を待機
             try
@@ -227,6 +238,8 @@ namespace GadgetTools.Plugins.TicketManage
                 if (_viewModel != null)
                 {
                     _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+                    _viewModel.ColumnFilterRequested -= ViewModel_ColumnFilterRequested;
+                    _viewModel.ShowColumnVisibilityRequested -= ViewModel_ShowColumnVisibilityRequested;
                 }
 
                 Loaded -= TicketManageView_Loaded;
@@ -341,6 +354,348 @@ namespace GadgetTools.Plugins.TicketManage
                         yield return childOfChild;
                     }
                 }
+            }
+        }
+
+        private void ViewModel_ColumnFilterRequested(object? sender, ColumnFilterRequestedEventArgs e)
+        {
+            ShowColumnFilter(e.ColumnName);
+        }
+
+        private void ShowColumnFilter(string columnName)
+        {
+            if (_viewModel == null) return;
+
+            CloseCurrentFilter();
+
+            try
+            {
+                var filterViewModel = new ExcelStyleFilterViewModel();
+                var filterControl = new ExcelStyleFilter { DataContext = filterViewModel };
+
+                _currentFilterPopup = new Popup
+                {
+                    Child = filterControl,
+                    PlacementTarget = this,
+                    Placement = PlacementMode.Mouse,
+                    StaysOpen = false,
+                    AllowsTransparency = true,
+                    PopupAnimation = PopupAnimation.Fade
+                };
+
+                filterViewModel.FilterApplied += (s, args) =>
+                {
+                    // ViewModelのフィルタマネージャーに直接適用
+                    if (_viewModel != null)
+                    {
+                        var manager = GetExcelFilterManager();
+                        manager?.ApplyFilter(args.ColumnName, args.SelectedValues);
+                    }
+                    CloseCurrentFilter();
+                };
+
+                filterViewModel.FilterCancelled += (s, args) =>
+                {
+                    CloseCurrentFilter();
+                };
+
+                // データを初期化
+                var columnData = GetColumnData(columnName);
+                var currentFilters = GetExcelFilterManager()?.GetActiveFilters();
+                var currentSelection = currentFilters?.ContainsKey(columnName) == true ? currentFilters[columnName] : null;
+                
+                filterViewModel.Initialize(columnName, columnData, currentSelection);
+
+                _currentFilterPopup.IsOpen = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error showing column filter: {ex.Message}");
+            }
+        }
+
+        private void CloseCurrentFilter()
+        {
+            if (_currentFilterPopup != null)
+            {
+                _currentFilterPopup.IsOpen = false;
+                _currentFilterPopup = null;
+            }
+        }
+
+        private ExcelFilterManager? GetExcelFilterManager()
+        {
+            // Reflectionを使ってprivate fieldにアクセス（実際の実装では適切なアクセサーを提供すべき）
+            if (_viewModel == null) return null;
+            
+            var fieldInfo = _viewModel.GetType().GetField("_excelFilterManager", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            return fieldInfo?.GetValue(_viewModel) as ExcelFilterManager;
+        }
+
+        private IEnumerable<object> GetColumnData(string columnName)
+        {
+            if (_viewModel?.WorkItems == null) return Enumerable.Empty<object>();
+
+            return columnName switch
+            {
+                "ID" => _viewModel.WorkItems.Select(w => (object)w.Id),
+                "Type" => _viewModel.WorkItems.Select(w => (object)(w.Fields.WorkItemType ?? "")),
+                "Title" => _viewModel.WorkItems.Select(w => (object)(w.Fields.Title ?? "")),
+                "State" => _viewModel.WorkItems.Select(w => (object)(w.Fields.State ?? "")),
+                "Assigned To" => _viewModel.WorkItems.Select(w => (object)(w.Fields.AssignedTo?.DisplayName ?? "")),
+                "Priority" => _viewModel.WorkItems.Select(w => (object)w.Fields.Priority.ToString()),
+                "Created" => _viewModel.WorkItems.Select(w => (object)w.Fields.CreatedDate.ToString("yyyy-MM-dd")),
+                "Last Updated" => _viewModel.WorkItems.Select(w => (object)w.Fields.ChangedDate.ToString("yyyy-MM-dd HH:mm")),
+                _ => Enumerable.Empty<object>()
+            };
+        }
+
+        private void ViewModel_ShowColumnVisibilityRequested(object? sender, EventArgs e)
+        {
+            ShowColumnVisibilityDialog();
+        }
+
+        private void InitializeColumnVisibility()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("InitializeColumnVisibility called");
+                
+                // DataGridが完全に読み込まれるまで待機
+                WorkItemsDataGrid.Loaded += WorkItemsDataGrid_Loaded;
+                System.Diagnostics.Debug.WriteLine("Loaded event handler added");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in InitializeColumnVisibility: {ex.Message}");
+            }
+        }
+
+        private void WorkItemsDataGrid_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"WorkItemsDataGrid_Loaded called. Columns count: {WorkItemsDataGrid.Columns.Count}");
+                
+                // 直接的な右クリックメニューを設定
+                SetupSimpleRightClickMenu();
+                System.Diagnostics.Debug.WriteLine("Simple right-click menu setup completed");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in WorkItemsDataGrid_Loaded: {ex.Message}");
+            }
+        }
+
+        private void SetupSimpleRightClickMenu()
+        {
+            try
+            {
+                // DataGridに右クリックイベントを追加
+                WorkItemsDataGrid.MouseRightButtonUp += WorkItemsDataGrid_MouseRightButtonUp;
+                System.Diagnostics.Debug.WriteLine("Right-click handler added to DataGrid");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in SetupSimpleRightClickMenu: {ex.Message}");
+            }
+        }
+
+        private void WorkItemsDataGrid_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("Right mouse button clicked on DataGrid");
+                
+                // ヒットテストでクリックされた要素を取得
+                var element = WorkItemsDataGrid.InputHitTest(e.GetPosition(WorkItemsDataGrid)) as FrameworkElement;
+                System.Diagnostics.Debug.WriteLine($"Hit element: {element?.GetType().Name}");
+                
+                // DataGridColumnHeaderを探す
+                var header = FindColumnHeader(element);
+                if (header != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Found column header: {header.Content}");
+                    ShowSimpleContextMenu(header, e);
+                    e.Handled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in right click handler: {ex.Message}");
+            }
+        }
+
+        private DataGridColumnHeader? FindColumnHeader(DependencyObject? element)
+        {
+            while (element != null)
+            {
+                if (element is DataGridColumnHeader header)
+                    return header;
+                element = VisualTreeHelper.GetParent(element);
+            }
+            return null;
+        }
+
+        private void ShowSimpleContextMenu(DataGridColumnHeader header, MouseButtonEventArgs e)
+        {
+            try
+            {
+                var contextMenu = new ContextMenu();
+                
+                // 現在の列を非表示にするメニューアイテム
+                var hideColumnItem = new MenuItem { Header = "この列を非表示" };
+                hideColumnItem.Click += (s, args) =>
+                {
+                    try
+                    {
+                        header.Column.Visibility = Visibility.Collapsed;
+                        System.Windows.MessageBox.Show($"列 '{header.Content}' を非表示にしました。", "完了", System.Windows.MessageBoxButton.OK);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show($"エラー: {ex.Message}", "エラー", System.Windows.MessageBoxButton.OK);
+                    }
+                };
+                contextMenu.Items.Add(hideColumnItem);
+
+                contextMenu.Items.Add(new Separator());
+
+                // 列の表示設定ダイアログを開くメニューアイテム
+                var columnsItem = new MenuItem { Header = "列の設定..." };
+                columnsItem.Click += (s, args) => ShowSimpleColumnVisibilityDialog();
+                contextMenu.Items.Add(columnsItem);
+
+                // すべての列を表示するメニューアイテム
+                var showAllItem = new MenuItem { Header = "すべての列を表示" };
+                showAllItem.Click += (s, args) =>
+                {
+                    foreach (var column in WorkItemsDataGrid.Columns)
+                    {
+                        column.Visibility = Visibility.Visible;
+                    }
+                    System.Windows.MessageBox.Show("すべての列を表示しました。", "完了", System.Windows.MessageBoxButton.OK);
+                };
+                contextMenu.Items.Add(showAllItem);
+
+                contextMenu.PlacementTarget = header;
+                contextMenu.IsOpen = true;
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"コンテキストメニューエラー: {ex.Message}", "エラー", System.Windows.MessageBoxButton.OK);
+            }
+        }
+
+        private void ShowColumnVisibilityDialog()
+        {
+            try
+            {
+                // 直接的なテスト：列の表示/非表示を切り替える簡単なダイアログを作成
+                ShowSimpleColumnVisibilityDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in ShowColumnVisibilityDialog: {ex.Message}");
+                System.Windows.MessageBox.Show($"Error: {ex.Message}", "Error", System.Windows.MessageBoxButton.OK);
+            }
+        }
+
+        private void ShowSimpleColumnVisibilityDialog()
+        {
+            try
+            {
+                if (WorkItemsDataGrid.Columns.Count == 0)
+                {
+                    System.Windows.MessageBox.Show("列が見つかりません。", "エラー", System.Windows.MessageBoxButton.OK);
+                    return;
+                }
+
+                // 簡単な列選択ダイアログを作成
+                var window = new Window
+                {
+                    Title = "列の表示/非表示",
+                    Width = 300,
+                    Height = 400,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = Window.GetWindow(this)
+                };
+
+                var stackPanel = new StackPanel { Margin = new Thickness(10) };
+
+                // 各列に対してチェックボックスを作成
+                var checkBoxes = new List<CheckBox>();
+                foreach (var column in WorkItemsDataGrid.Columns)
+                {
+                    var checkBox = new CheckBox
+                    {
+                        Content = column.Header?.ToString() ?? "Unknown",
+                        IsChecked = column.Visibility == Visibility.Visible,
+                        Tag = column,
+                        Margin = new Thickness(0, 5, 0, 5)
+                    };
+                    
+                    checkBox.Checked += (s, e) =>
+                    {
+                        if (checkBox.Tag is DataGridColumn col)
+                        {
+                            col.Visibility = Visibility.Visible;
+                        }
+                    };
+                    
+                    checkBox.Unchecked += (s, e) =>
+                    {
+                        if (checkBox.Tag is DataGridColumn col)
+                        {
+                            col.Visibility = Visibility.Collapsed;
+                        }
+                    };
+                    
+                    checkBoxes.Add(checkBox);
+                    stackPanel.Children.Add(checkBox);
+                }
+
+                // ボタンパネル
+                var buttonPanel = new StackPanel 
+                { 
+                    Orientation = Orientation.Horizontal, 
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 10, 0, 0)
+                };
+
+                var showAllButton = new Button 
+                { 
+                    Content = "すべて表示", 
+                    Width = 80, 
+                    Margin = new Thickness(5, 0, 5, 0) 
+                };
+                showAllButton.Click += (s, e) =>
+                {
+                    foreach (var checkBox in checkBoxes)
+                    {
+                        checkBox.IsChecked = true;
+                    }
+                };
+
+                var closeButton = new Button 
+                { 
+                    Content = "閉じる", 
+                    Width = 60, 
+                    Margin = new Thickness(5, 0, 5, 0) 
+                };
+                closeButton.Click += (s, e) => window.Close();
+
+                buttonPanel.Children.Add(showAllButton);
+                buttonPanel.Children.Add(closeButton);
+                stackPanel.Children.Add(buttonPanel);
+
+                window.Content = stackPanel;
+                window.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"ダイアログ作成エラー: {ex.Message}", "エラー", System.Windows.MessageBoxButton.OK);
             }
         }
     }

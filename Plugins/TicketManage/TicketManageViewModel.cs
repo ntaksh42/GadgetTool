@@ -9,6 +9,7 @@ using GadgetTools.Core.Models;
 using GadgetTools.Core.Services;
 using GadgetTools.Core.ViewModels;
 using GadgetTools.Core.Views;
+using GadgetTools.Core.Controls;
 using GadgetTools.Models;
 using GadgetTools.Services;
 
@@ -35,6 +36,7 @@ namespace GadgetTools.Plugins.TicketManage
 
         private readonly CollectionViewSource _workItemsViewSource = new();
         private readonly List<WorkItem> _allWorkItems = new();
+        private readonly ExcelFilterManager _excelFilterManager = new();
         #endregion
 
         #region Collections
@@ -191,6 +193,9 @@ namespace GadgetTools.Plugins.TicketManage
         public ICommand ClearFilterCommand { get; }
         public ICommand ShowAdvancedFilterCommand { get; }
         public ICommand ShowGlobalSearchCommand { get; }
+        public ICommand ShowColumnFilterCommand { get; }
+        public ICommand ClearExcelFiltersCommand { get; }
+        public ICommand ShowColumnVisibilityCommand { get; }
         #endregion
 
         public TicketManageViewModel()
@@ -203,6 +208,9 @@ namespace GadgetTools.Plugins.TicketManage
             ClearFilterCommand = new RelayCommand(ClearFilter);
             ShowAdvancedFilterCommand = new RelayCommand(ShowAdvancedFilter);
             ShowGlobalSearchCommand = new RelayCommand(ShowGlobalSearch);
+            ShowColumnFilterCommand = new RelayCommand<string>(ShowColumnFilter);
+            ClearExcelFiltersCommand = new RelayCommand(ClearExcelFilters);
+            ShowColumnVisibilityCommand = new RelayCommand(ShowColumnVisibility);
 
             _workItemsViewSource.Source = WorkItems;
             _workItemsViewSource.Filter += OnWorkItemsFilter;
@@ -251,6 +259,9 @@ namespace GadgetTools.Plugins.TicketManage
             
             // 共通設定の変更を監視
             _configService.ConfigurationChanged += OnSharedConfigChanged;
+            
+            // Excel風フィルタの変更を監視
+            _excelFilterManager.FilterChanged += OnExcelFilterChanged;
         }
 
         private async Task TestConnectionAsync()
@@ -322,6 +333,9 @@ namespace GadgetTools.Plugins.TicketManage
 
                 RefreshWorkItemsView();
                 GenerateMarkdownPreview();
+                
+                // Excel風フィルタのデータを更新
+                UpdateExcelFilterData();
 
                 IsConnected = true;
                 StatusMessage = $"✅ {workItems.Count}件のワークアイテムを取得しました";
@@ -383,25 +397,45 @@ namespace GadgetTools.Plugins.TicketManage
         {
             if (e.Item is WorkItem workItem)
             {
-                if (string.IsNullOrEmpty(FilterText))
+                // まず基本的なテキストフィルタをチェック
+                bool passesTextFilter = true;
+                if (!string.IsNullOrEmpty(FilterText))
                 {
-                    e.Accepted = true;
-                    return;
+                    var filterText = FilterText.ToLower();
+                    var searchableText = new[]
+                    {
+                        workItem.Id.ToString(),
+                        workItem.Fields.WorkItemType?.ToLower() ?? "",
+                        workItem.Fields.Title?.ToLower() ?? "",
+                        workItem.Fields.State?.ToLower() ?? "",
+                        workItem.Fields.AssignedTo?.DisplayName?.ToLower() ?? "",
+                        workItem.Fields.Description?.ToLower() ?? "",
+                        workItem.Fields.Tags?.ToLower() ?? ""
+                    };
+
+                    passesTextFilter = searchableText.Any(text => text.Contains(filterText));
                 }
 
-                var filterText = FilterText.ToLower();
-                var searchableText = new[]
+                // Excel風フィルタもチェック
+                bool passesExcelFilter = true;
+                if (_excelFilterManager.HasActiveFilters)
                 {
-                    workItem.Id.ToString(),
-                    workItem.Fields.WorkItemType?.ToLower() ?? "",
-                    workItem.Fields.Title?.ToLower() ?? "",
-                    workItem.Fields.State?.ToLower() ?? "",
-                    workItem.Fields.AssignedTo?.DisplayName?.ToLower() ?? "",
-                    workItem.Fields.Description?.ToLower() ?? "",
-                    workItem.Fields.Tags?.ToLower() ?? ""
-                };
+                    var propertyGetters = new Dictionary<string, Func<object, object?>>
+                    {
+                        ["ID"] = (item) => ((WorkItem)item).Id,
+                        ["Type"] = (item) => ((WorkItem)item).Fields.WorkItemType ?? "",
+                        ["Title"] = (item) => ((WorkItem)item).Fields.Title ?? "",
+                        ["State"] = (item) => ((WorkItem)item).Fields.State ?? "",
+                        ["Assigned To"] = (item) => ((WorkItem)item).Fields.AssignedTo?.DisplayName ?? "",
+                        ["Priority"] = (item) => ((WorkItem)item).Fields.Priority.ToString(),
+                        ["Created"] = (item) => ((WorkItem)item).Fields.CreatedDate.ToString("yyyy-MM-dd"),
+                        ["Last Updated"] = (item) => ((WorkItem)item).Fields.ChangedDate.ToString("yyyy-MM-dd HH:mm")
+                    };
 
-                e.Accepted = searchableText.Any(text => text.Contains(filterText));
+                    passesExcelFilter = _excelFilterManager.ShouldIncludeItem(workItem, propertyGetters);
+                }
+
+                e.Accepted = passesTextFilter && passesExcelFilter;
             }
             else
             {
@@ -860,5 +894,80 @@ namespace GadgetTools.Plugins.TicketManage
         }
 
         #endregion
+
+        #region Excel Style Filter Methods
+
+        private void ShowColumnFilter(string? columnName)
+        {
+            if (string.IsNullOrEmpty(columnName) || WorkItems.Count == 0)
+                return;
+
+            System.Diagnostics.Debug.WriteLine($"Showing filter for column: {columnName}");
+            // この実装では、ViewでPopupを表示する必要があります
+            // ViewModelからPopupを直接制御することはできないため、
+            // イベントを発火してViewで処理します
+            ColumnFilterRequested?.Invoke(this, new ColumnFilterRequestedEventArgs(columnName));
+        }
+
+        private void ClearExcelFilters()
+        {
+            _excelFilterManager.ClearAllFilters();
+        }
+
+        private void OnExcelFilterChanged(object? sender, EventArgs e)
+        {
+            RefreshWorkItemsView();
+        }
+
+        private void UpdateExcelFilterData()
+        {
+            if (WorkItems.Count == 0) return;
+
+            try
+            {
+                // 各列のデータを登録
+                _excelFilterManager.RegisterColumn("ID", WorkItems.Select(w => (object)w.Id));
+                _excelFilterManager.RegisterColumn("Type", WorkItems.Select(w => (object)(w.Fields.WorkItemType ?? "")));
+                _excelFilterManager.RegisterColumn("Title", WorkItems.Select(w => (object)(w.Fields.Title ?? "")));
+                _excelFilterManager.RegisterColumn("State", WorkItems.Select(w => (object)(w.Fields.State ?? "")));
+                _excelFilterManager.RegisterColumn("Assigned To", WorkItems.Select(w => (object)(w.Fields.AssignedTo?.DisplayName ?? "")));
+                _excelFilterManager.RegisterColumn("Priority", WorkItems.Select(w => (object)w.Fields.Priority.ToString()));
+                _excelFilterManager.RegisterColumn("Created", WorkItems.Select(w => (object)(w.Fields.CreatedDate.ToString("yyyy-MM-dd"))));
+                _excelFilterManager.RegisterColumn("Last Updated", WorkItems.Select(w => (object)(w.Fields.ChangedDate.ToString("yyyy-MM-dd HH:mm"))));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating Excel filter data: {ex.Message}");
+            }
+        }
+
+        public event EventHandler<ColumnFilterRequestedEventArgs>? ColumnFilterRequested;
+        public event EventHandler? ShowColumnVisibilityRequested;
+
+        private void ShowColumnVisibility()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("ShowColumnVisibility command executed");
+                ShowColumnVisibilityRequested?.Invoke(this, EventArgs.Empty);
+                System.Diagnostics.Debug.WriteLine("ShowColumnVisibilityRequested event fired");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in ShowColumnVisibility: {ex.Message}");
+            }
+        }
+
+        #endregion
+    }
+
+    public class ColumnFilterRequestedEventArgs : EventArgs
+    {
+        public string ColumnName { get; }
+
+        public ColumnFilterRequestedEventArgs(string columnName)
+        {
+            ColumnName = columnName;
+        }
     }
 }
