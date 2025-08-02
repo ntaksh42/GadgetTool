@@ -2,14 +2,16 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace GadgetTools.Core.Services
 {
     public class HtmlContentCache
     {
         private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
-        private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(10);
-        private readonly int _maxCacheSize = 100;
+        private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(15); // 15分に延長
+        private readonly int _maxCacheSize = 200; // キャッシュサイズを拡大
+        private readonly object _cleanupLock = new object();
 
         private static readonly Lazy<HtmlContentCache> _instance = new(() => new HtmlContentCache());
         public static HtmlContentCache Instance => _instance.Value;
@@ -46,10 +48,11 @@ namespace GadgetTools.Core.Services
             if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(htmlContent))
                 return;
 
-            // Enforce cache size limit
+            // Enforce cache size limit with optimized cleanup
             if (_cache.Count >= _maxCacheSize)
             {
-                CleanupOldEntries();
+                // 非同期でクリーンアップを実行してパフォーマンス向上
+                _ = Task.Run(() => CleanupOldEntries());
             }
 
             var entry = new CacheEntry
@@ -94,27 +97,40 @@ namespace GadgetTools.Core.Services
 
         private void CleanupOldEntries()
         {
-            // Remove oldest entries to make room
-            var entriesToRemove = _cache
-                .OrderBy(kvp => kvp.Value.LastAccessed)
-                .Take(_maxCacheSize / 4) // Remove 25% of cache
-                .Select(kvp => kvp.Key)
-                .ToList();
-
-            foreach (var key in entriesToRemove)
+            lock (_cleanupLock)
             {
-                _cache.TryRemove(key, out _);
-            }
+                // 期限切れのエントリを最初に削除
+                RemoveExpiredEntries();
+                
+                // まだ容量が足りない場合は、古いエントリを削除
+                if (_cache.Count >= _maxCacheSize)
+                {
+                    var entriesToRemove = _cache
+                        .OrderBy(kvp => kvp.Value.LastAccessed)
+                        .Take(_maxCacheSize / 3) // Remove 33% of cache
+                        .Select(kvp => kvp.Key)
+                        .ToList();
 
-            System.Diagnostics.Debug.WriteLine($"Cleaned up {entriesToRemove.Count} old cache entries");
+                    foreach (var key in entriesToRemove)
+                    {
+                        _cache.TryRemove(key, out _);
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"Cleaned up {entriesToRemove.Count} old cache entries");
+                }
+            }
         }
 
-        public static string GenerateCacheKey(int workItemId, DateTime? lastModified = null)
+        public static string GenerateCacheKey(int workItemId, DateTime? lastModified = null, int? commentCount = null)
         {
             var baseKey = $"workitem_{workItemId}";
             if (lastModified.HasValue)
             {
                 baseKey += $"_{lastModified.Value:yyyyMMddHHmmss}";
+            }
+            if (commentCount.HasValue)
+            {
+                baseKey += $"_c{commentCount.Value}";
             }
             return baseKey;
         }

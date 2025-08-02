@@ -9,14 +9,14 @@ namespace GadgetTools.Core.Services
     {
         private const int MAX_CONTENT_SIZE = 1024 * 1024; // 1MB limit
 
-        public static string GenerateWorkItemHtml(WorkItem workItem)
+        public static string GenerateWorkItemHtml(WorkItem workItem, List<WorkItemComment>? comments = null)
         {
             if (workItem == null)
                 throw new ArgumentNullException(nameof(workItem));
 
             try
             {
-                var html = GenerateWorkItemHtmlInternal(workItem);
+                var html = GenerateWorkItemHtmlInternal(workItem, comments);
                 
                 if (!ValidateHtmlContent(html))
                 {
@@ -96,8 +96,20 @@ namespace GadgetTools.Core.Services
             }
         }
 
-        private static string GenerateWorkItemHtmlInternal(WorkItem workItem)
+        private static string GenerateWorkItemHtmlInternal(WorkItem workItem, List<WorkItemComment>? comments = null)
         {
+            // Debug logging for comments
+            System.Diagnostics.Debug.WriteLine($"TicketHtmlService: Generating HTML for Work Item #{workItem.Id}");
+            System.Diagnostics.Debug.WriteLine($"TicketHtmlService: Comments count: {comments?.Count ?? 0}");
+            if (comments != null && comments.Count > 0)
+            {
+                for (int i = 0; i < Math.Min(3, comments.Count); i++)
+                {
+                    var comment = comments[i];
+                    System.Diagnostics.Debug.WriteLine($"TicketHtmlService: Comment {i + 1} - ID: {comment.Id}, Text: {comment.Text?.Substring(0, Math.Min(50, comment.Text?.Length ?? 0))}..., Author: {comment.CreatedBy?.DisplayName}");
+                }
+            }
+
             var contentBuilder = new StringBuilder();
             
             // Header section
@@ -160,6 +172,65 @@ namespace GadgetTools.Core.Services
                         <h3 class='section-title'>Acceptance Criteria</h3>
                         <div class='criteria-content'>
                             <pre class='criteria-text'>{safeCriteria}</pre>
+                        </div>
+                    </div>
+                ");
+            }
+
+            // Discussion section
+            if (comments != null && comments.Count > 0)
+            {
+                contentBuilder.AppendLine($@"
+                    <div class='ticket-section discussion-section'>
+                        <h3 class='section-title'>
+                            💬 Discussion ({comments.Count} comments)
+                        </h3>
+                        <div class='discussion-content'>
+                ");
+
+                // Sort comments by created date (oldest first)
+                var sortedComments = comments.OrderBy(c => c.CreatedDate).ToList();
+                
+                foreach (var comment in sortedComments)
+                {
+                    var safeCommentText = WebUtility.HtmlEncode(comment.Text);
+                    var authorName = WebUtility.HtmlEncode(comment.CreatedBy?.DisplayName ?? "Unknown");
+                    var createdDate = comment.CreatedDate.ToString("yyyy-MM-dd HH:mm");
+                    var isModified = comment.ModifiedDate > comment.CreatedDate.AddMinutes(1);
+                    var modifiedInfo = isModified ? $" (edited {comment.ModifiedDate:yyyy-MM-dd HH:mm})" : "";
+
+                    contentBuilder.AppendLine($@"
+                        <div class='comment-item'>
+                            <div class='comment-header'>
+                                <div class='comment-author'>{authorName}</div>
+                                <div class='comment-meta'>
+                                    <span class='comment-date'>{createdDate}</span>
+                                    {(isModified ? $"<span class='comment-modified'>{modifiedInfo}</span>" : "")}
+                                </div>
+                            </div>
+                            <div class='comment-body'>
+                                <pre class='comment-text'>{safeCommentText}</pre>
+                            </div>
+                        </div>
+                    ");
+                }
+
+                contentBuilder.AppendLine(@"
+                        </div>
+                    </div>
+                ");
+            }
+            else if (comments != null && comments.Count == 0)
+            {
+                contentBuilder.AppendLine($@"
+                    <div class='ticket-section discussion-section'>
+                        <h3 class='section-title'>💬 Discussion</h3>
+                        <div class='discussion-content'>
+                            <div class='no-comments'>
+                                <div class='no-comments-icon'>💭</div>
+                                <div class='no-comments-text'>No comments yet</div>
+                                <div class='no-comments-subtitle'>Be the first to comment on this work item</div>
+                            </div>
                         </div>
                     </div>
                 ");
@@ -491,6 +562,103 @@ namespace GadgetTools.Core.Services
                     margin-bottom: 4px;
                 }
 
+                /* Discussion Styles */
+                .discussion-section {
+                    margin-top: 24px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 8px;
+                    overflow: hidden;
+                }
+
+                .discussion-content {
+                    background: var(--bg-color);
+                    padding: 0;
+                }
+
+                .comment-item {
+                    border-bottom: 1px solid var(--border-color);
+                    padding: 16px;
+                    transition: background-color 0.2s ease;
+                }
+
+                .comment-item:last-child {
+                    border-bottom: none;
+                }
+
+                .comment-item:hover {
+                    background-color: #f8f9fa;
+                }
+
+                .comment-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 8px;
+                }
+
+                .comment-author {
+                    font-weight: 600;
+                    color: var(--primary-color);
+                    font-size: 14px;
+                }
+
+                .comment-meta {
+                    display: flex;
+                    gap: 8px;
+                    font-size: 12px;
+                    color: var(--secondary-color);
+                }
+
+                .comment-date {
+                    color: var(--secondary-color);
+                }
+
+                .comment-modified {
+                    color: #6a737d;
+                    font-style: italic;
+                }
+
+                .comment-body {
+                    margin-top: 8px;
+                }
+
+                .comment-text {
+                    background: transparent;
+                    border: none;
+                    padding: 0;
+                    margin: 0;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    color: var(--text-color);
+                }
+
+                .no-comments {
+                    text-align: center;
+                    padding: 40px 20px;
+                    color: var(--secondary-color);
+                }
+
+                .no-comments-icon {
+                    font-size: 32px;
+                    margin-bottom: 12px;
+                    opacity: 0.6;
+                }
+
+                .no-comments-text {
+                    font-size: 16px;
+                    font-weight: 500;
+                    margin-bottom: 8px;
+                    color: var(--text-color);
+                }
+
+                .no-comments-subtitle {
+                    font-size: 14px;
+                    color: var(--secondary-color);
+                }
+
                 /* List View Styles */
                 .list-header {
                     margin-bottom: 24px;
@@ -585,6 +753,16 @@ namespace GadgetTools.Core.Services
                         flex-direction: column;
                         align-items: flex-start;
                     }
+                    
+                    .comment-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 4px;
+                    }
+                    
+                    .comment-item {
+                        padding: 12px;
+                    }
                 }
                 
                 @media (max-width: 480px) {
@@ -598,6 +776,14 @@ namespace GadgetTools.Core.Services
                     
                     .instructions {
                         padding: 16px;
+                    }
+                    
+                    .comment-text {
+                        font-size: 13px;
+                    }
+                    
+                    .no-comments {
+                        padding: 24px 16px;
                     }
                 }
             ";

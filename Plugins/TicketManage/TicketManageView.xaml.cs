@@ -16,6 +16,8 @@ namespace GadgetTools.Plugins.TicketManage
         private bool _webViewInitialized = false;
         private TicketManageViewModel? _viewModel;
         private bool _disposed = false;
+        private string _lastNavigatedContent = "";
+        private bool _isNavigating = false;
 
         public TicketManageView()
         {
@@ -107,7 +109,7 @@ namespace GadgetTools.Plugins.TicketManage
 
         private void UpdateWebViewContent()
         {
-            if (_disposed || _viewModel == null || !_webViewInitialized)
+            if (_disposed || _viewModel == null || !_webViewInitialized || _isNavigating)
                 return;
 
             try
@@ -115,6 +117,15 @@ namespace GadgetTools.Plugins.TicketManage
                 var htmlContent = _viewModel.HtmlPreview;
                 if (!string.IsNullOrEmpty(htmlContent))
                 {
+                    // 同じコンテンツの場合は再ナビゲーションをスキップ
+                    if (_lastNavigatedContent == htmlContent)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Skipping navigation - content unchanged");
+                        return;
+                    }
+                    
+                    _isNavigating = true;
+                    _lastNavigatedContent = htmlContent;
                     PreviewWebView.NavigateToString(htmlContent);
                     System.Diagnostics.Debug.WriteLine("WebView content updated successfully");
                 }
@@ -126,6 +137,7 @@ namespace GadgetTools.Plugins.TicketManage
             }
             catch (Exception ex)
             {
+                _isNavigating = false;
                 System.Diagnostics.Debug.WriteLine($"WebView navigation error: {ex.Message}");
                 ShowFallbackContent();
                 
@@ -167,9 +179,11 @@ namespace GadgetTools.Plugins.TicketManage
 
         private void PreviewWebView_NavigationCompleted(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
         {
+            _isNavigating = false;
             System.Diagnostics.Debug.WriteLine($"WebView navigation completed. Success: {e.IsSuccess}");
             if (!e.IsSuccess)
             {
+                _lastNavigatedContent = ""; // Reset on failure
                 System.Diagnostics.Debug.WriteLine($"Navigation failed: {e.WebErrorStatus}");
                 ShowFallbackContent();
             }

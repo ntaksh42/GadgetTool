@@ -97,6 +97,48 @@ namespace GadgetTools.Models
         public string ImageUrl { get; set; } = "";
     }
 
+    public class WorkItemCommentsResponse
+    {
+        [JsonProperty("comments")]
+        public List<WorkItemComment> Comments { get; set; } = new List<WorkItemComment>();
+
+        [JsonProperty("count")]
+        public int Count { get; set; }
+
+        [JsonProperty("totalCount")]
+        public int TotalCount { get; set; }
+    }
+
+    public class WorkItemComment
+    {
+        [JsonProperty("id")]
+        public int Id { get; set; }
+
+        [JsonProperty("workItemId")]
+        public int WorkItemId { get; set; }
+
+        [JsonProperty("version")]
+        public int Version { get; set; }
+
+        [JsonProperty("text")]
+        public string Text { get; set; } = "";
+
+        [JsonProperty("createdBy")]
+        public AssignedPerson? CreatedBy { get; set; }
+
+        [JsonProperty("createdDate")]
+        public DateTime CreatedDate { get; set; }
+
+        [JsonProperty("modifiedBy")]
+        public AssignedPerson? ModifiedBy { get; set; }
+
+        [JsonProperty("modifiedDate")]
+        public DateTime ModifiedDate { get; set; }
+
+        [JsonProperty("url")]
+        public string Url { get; set; } = "";
+    }
+
     public class WorkItemQueryRequest
     {
         public string Organization { get; set; } = "";

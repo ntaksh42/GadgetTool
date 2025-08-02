@@ -387,31 +387,95 @@ namespace GadgetTools.Plugins.TicketManage
             }
         }
 
+        private WorkItem? _lastDetailedWorkItem;
+        private string _lastHtmlContent = "";
+        private readonly object _updateLock = new object();
+        private CancellationTokenSource? _currentUpdateToken;
+
         private async void ShowWorkItemDetail(WorkItem workItem)
         {
             System.Diagnostics.Debug.WriteLine($"ShowWorkItemDetail called for Work Item #{workItem.Id}");
             
+            // 同じワークアイテムの場合は再計算をスキップ
+            if (_lastDetailedWorkItem?.Id == workItem.Id)
+            {
+                System.Diagnostics.Debug.WriteLine($"Skipping duplicate detail request for Work Item #{workItem.Id}");
+                return;
+            }
+            
+            // 前の更新処理をキャンセル
+            _currentUpdateToken?.Cancel();
+            _currentUpdateToken = new CancellationTokenSource();
+            var token = _currentUpdateToken.Token;
+            
+            lock (_updateLock)
+            {
+                _lastDetailedWorkItem = workItem;
+            }
+            
             try
             {
-                // Generate cache key based on work item and last modified date
-                var cacheKey = HtmlContentCache.GenerateCacheKey(workItem.Id, workItem.Fields.ChangedDate);
+                // キャンセルチェック
+                if (token.IsCancellationRequested) return;
+                
+                // First, get comments to generate proper cache key
+                List<WorkItemComment>? comments = null;
+                try
+                {
+                    var config = CreateAzureDevOpsConfig();
+                    using var service = new AzureDevOpsService(config);
+                    comments = await service.GetWorkItemCommentsAsync(workItem.Id, Project);
+                    System.Diagnostics.Debug.WriteLine($"Retrieved {comments.Count} comments for Work Item #{workItem.Id}");
+                    
+                    // キャンセルチェック
+                    if (token.IsCancellationRequested) return;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to get comments for Work Item #{workItem.Id}: {ex.Message}");
+                    // Continue without comments
+                }
+
+                // Generate cache key based on work item, last modified date, and comment count
+                var cacheKey = HtmlContentCache.GenerateCacheKey(workItem.Id, workItem.Fields.ChangedDate, comments?.Count);
                 
                 // Try to get cached HTML content first
                 if (HtmlContentCache.Instance.TryGetCachedContent(cacheKey, out var cachedHtml))
                 {
                     System.Diagnostics.Debug.WriteLine($"Using cached HTML for Work Item #{workItem.Id}");
-                    HtmlPreview = cachedHtml ?? "";
+                    
+                    // キャンセルチェック
+                    if (token.IsCancellationRequested) return;
+                    
+                    // UIスレッドで更新（必要な場合のみ）
+                    if (_lastHtmlContent != cachedHtml)
+                    {
+                        _lastHtmlContent = cachedHtml ?? "";
+                        HtmlPreview = _lastHtmlContent;
+                    }
                 }
                 else
                 {
-                    // Generate HTML asynchronously for better performance
-                    var htmlContent = await Task.Run(() => TicketHtmlService.GenerateWorkItemHtml(workItem));
+                    // Generate HTML asynchronously with comments for better performance
+                    var htmlContent = await Task.Run(() => 
+                    {
+                        if (token.IsCancellationRequested) return null;
+                        return TicketHtmlService.GenerateWorkItemHtml(workItem, comments);
+                    }, token);
+                    
+                    // キャンセルチェック
+                    if (token.IsCancellationRequested || htmlContent == null) return;
                     
                     // Cache the generated content
                     HtmlContentCache.Instance.CacheContent(cacheKey, htmlContent);
-                    System.Diagnostics.Debug.WriteLine($"Generated and cached HTML for Work Item #{workItem.Id}, length: {htmlContent?.Length ?? 0}");
+                    System.Diagnostics.Debug.WriteLine($"Generated and cached HTML with discussions for Work Item #{workItem.Id}, length: {htmlContent?.Length ?? 0}");
                     
-                    HtmlPreview = htmlContent;
+                    // UIスレッドで更新（必要な場合のみ）
+                    if (_lastHtmlContent != htmlContent)
+                    {
+                        _lastHtmlContent = htmlContent;
+                        HtmlPreview = htmlContent;
+                    }
                 }
 
                 // Generate Markdown for traditional preview (not cached as it's less expensive)
