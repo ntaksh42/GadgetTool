@@ -8,7 +8,7 @@ using System.Windows.Media;
 using GadgetTools.Core.Views;
 using GadgetTools.Core.Controls;
 using GadgetTools.Core.ViewModels;
-using GadgetTools.Models;
+using GadgetTools.Shared.Models;
 
 namespace GadgetTools.Plugins.TicketManage
 {

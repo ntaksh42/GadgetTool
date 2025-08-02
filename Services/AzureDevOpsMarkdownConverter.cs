@@ -1,6 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using GadgetTools.Models;
+using GadgetTools.Shared.Models;
 
 namespace GadgetTools.Services
 {

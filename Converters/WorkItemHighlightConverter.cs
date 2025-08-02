@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
-using GadgetTools.Models;
+using GadgetTools.Shared.Models;
 
 namespace GadgetTools.Converters
 {

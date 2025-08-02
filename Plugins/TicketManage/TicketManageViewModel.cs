@@ -10,7 +10,7 @@ using GadgetTools.Core.Services;
 using GadgetTools.Core.ViewModels;
 using GadgetTools.Core.Views;
 using GadgetTools.Core.Controls;
-using GadgetTools.Models;
+using GadgetTools.Shared.Models;
 using GadgetTools.Services;
 
 namespace GadgetTools.Plugins.TicketManage

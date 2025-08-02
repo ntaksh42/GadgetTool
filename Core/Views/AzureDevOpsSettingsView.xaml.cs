@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using GadgetTools.Core.Services;
 using GadgetTools.Services;
-using GadgetTools.Models;
+using GadgetTools.Shared.Models;
 
 namespace GadgetTools.Core.Views
 {

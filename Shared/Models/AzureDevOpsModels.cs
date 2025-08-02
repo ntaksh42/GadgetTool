@@ -1,7 +1,10 @@
 using Newtonsoft.Json;
 
-namespace GadgetTools.Models
+namespace GadgetTools.Shared.Models
 {
+    /// <summary>
+    /// Azure DevOps configuration model
+    /// </summary>
     public class AzureDevOpsConfig
     {
         public string Organization { get; set; } = "";
@@ -10,6 +13,9 @@ namespace GadgetTools.Models
         public string BaseUrl => $"https://dev.azure.com/{Organization}";
     }
 
+    /// <summary>
+    /// Response model for Azure DevOps Work Items API
+    /// </summary>
     public class WorkItemResponse
     {
         [JsonProperty("value")]
@@ -19,6 +25,9 @@ namespace GadgetTools.Models
         public int Count { get; set; }
     }
 
+    /// <summary>
+    /// Azure DevOps Work Item model
+    /// </summary>
     public class WorkItem
     {
         [JsonProperty("id")]
@@ -34,6 +43,9 @@ namespace GadgetTools.Models
         public string Url { get; set; } = "";
     }
 
+    /// <summary>
+    /// Work Item fields collection
+    /// </summary>
     public class WorkItemFields
     {
         [JsonProperty("System.Id")]
@@ -85,6 +97,9 @@ namespace GadgetTools.Models
         public string AcceptanceCriteria { get; set; } = "";
     }
 
+    /// <summary>
+    /// Assigned person information
+    /// </summary>
     public class AssignedPerson
     {
         [JsonProperty("displayName")]
@@ -97,6 +112,9 @@ namespace GadgetTools.Models
         public string ImageUrl { get; set; } = "";
     }
 
+    /// <summary>
+    /// Work Item comments response
+    /// </summary>
     public class WorkItemCommentsResponse
     {
         [JsonProperty("comments")]
@@ -109,6 +127,9 @@ namespace GadgetTools.Models
         public int TotalCount { get; set; }
     }
 
+    /// <summary>
+    /// Individual work item comment
+    /// </summary>
     public class WorkItemComment
     {
         [JsonProperty("id")]
@@ -139,6 +160,9 @@ namespace GadgetTools.Models
         public string Url { get; set; } = "";
     }
 
+    /// <summary>
+    /// Work Item query request parameters
+    /// </summary>
     public class WorkItemQueryRequest
     {
         public string Organization { get; set; } = "";

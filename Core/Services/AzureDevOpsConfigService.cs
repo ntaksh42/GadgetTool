@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using GadgetTools.Core.Models;
 using GadgetTools.Services;
-using GadgetTools.Models;
+using GadgetTools.Shared.Models;
 
 namespace GadgetTools.Core.Services
 {

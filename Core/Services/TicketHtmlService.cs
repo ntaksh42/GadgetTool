@@ -1,7 +1,7 @@
 using System;
 using System.Net;
 using System.Text;
-using GadgetTools.Models;
+using GadgetTools.Shared.Models;
 
 namespace GadgetTools.Core.Services
 {
