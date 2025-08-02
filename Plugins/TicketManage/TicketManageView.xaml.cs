@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.ComponentModel;
+using System.Windows.Media;
 using GadgetTools.Core.Views;
 using GadgetTools.Models;
 
@@ -29,22 +30,30 @@ namespace GadgetTools.Plugins.TicketManage
 
         private void TicketManageView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine($"DataContextChanged: Old={e.OldValue?.GetType().Name}, New={e.NewValue?.GetType().Name}");
+            
             if (_viewModel != null)
             {
                 _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+                System.Diagnostics.Debug.WriteLine("Unsubscribed from old ViewModel PropertyChanged");
             }
 
             _viewModel = DataContext as TicketManageViewModel;
             if (_viewModel != null)
             {
                 _viewModel.PropertyChanged += ViewModel_PropertyChanged;
-                System.Diagnostics.Debug.WriteLine("ViewModel connected to TicketManageView");
+                System.Diagnostics.Debug.WriteLine($"ViewModel connected to TicketManageView. WebView initialized: {_webViewInitialized}");
                 
                 // WebViewが既に初期化されている場合は初期コンテンツを設定
                 if (_webViewInitialized && !string.IsNullOrEmpty(_viewModel.HtmlPreview))
                 {
+                    System.Diagnostics.Debug.WriteLine("Updating WebView with existing content");
                     UpdateWebViewContent();
                 }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("DataContext is not TicketManageViewModel or is null");
             }
         }
         
@@ -56,6 +65,10 @@ namespace GadgetTools.Plugins.TicketManage
             try
             {
                 await PreviewWebView.EnsureCoreWebView2Async();
+                
+                // NavigationCompleted イベントを接続
+                PreviewWebView.NavigationCompleted += PreviewWebView_NavigationCompleted;
+                
                 _webViewInitialized = true;
                 System.Diagnostics.Debug.WriteLine("WebView2 initialized successfully");
                 
@@ -97,12 +110,17 @@ namespace GadgetTools.Plugins.TicketManage
 
         private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine($"PropertyChanged: {e.PropertyName}");
             if (e.PropertyName == nameof(TicketManageViewModel.HtmlPreview))
             {
-                System.Diagnostics.Debug.WriteLine($"HtmlPreview property changed. WebView initialized: {_webViewInitialized}");
+                System.Diagnostics.Debug.WriteLine($"HtmlPreview property changed. WebView initialized: {_webViewInitialized}, Content length: {_viewModel?.HtmlPreview?.Length ?? 0}");
                 if (_webViewInitialized)
                 {
                     UpdateWebViewContent();
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("WebView not initialized yet, skipping update");
                 }
             }
         }
@@ -187,6 +205,10 @@ namespace GadgetTools.Plugins.TicketManage
                 System.Diagnostics.Debug.WriteLine($"Navigation failed: {e.WebErrorStatus}");
                 ShowFallbackContent();
             }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("WebView navigation succeeded");
+            }
         }
 
         private void TicketManageView_Unloaded(object sender, RoutedEventArgs e)
@@ -233,13 +255,15 @@ namespace GadgetTools.Plugins.TicketManage
             var settingsView = new AzureDevOpsSettingsView();
             var window = new Window
             {
-                Title = "Azure DevOps Global Settings",
+                Title = "Azure DevOps Settings",
                 Content = settingsView,
-                Width = 600,
-                Height = 300,
+                Width = 650,
+                Height = 500,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = Window.GetWindow(this),
-                ResizeMode = ResizeMode.NoResize
+                ResizeMode = ResizeMode.CanResize,
+                MinWidth = 600,
+                MinHeight = 400
             };
             window.ShowDialog();
         }
@@ -276,6 +300,46 @@ namespace GadgetTools.Plugins.TicketManage
                 {
                     System.Windows.MessageBox.Show($"Failed to open work item: {ex.Message}", "Error", 
                         System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void CollapseAll_Click(object sender, RoutedEventArgs e)
+        {
+            // Find all Expanders in the visual tree and collapse them
+            var expanders = FindVisualChildren<Expander>(this);
+            foreach (var expander in expanders)
+            {
+                expander.IsExpanded = false;
+            }
+        }
+
+        private void ExpandAll_Click(object sender, RoutedEventArgs e)
+        {
+            // Find all Expanders in the visual tree and expand them
+            var expanders = FindVisualChildren<Expander>(this);
+            foreach (var expander in expanders)
+            {
+                expander.IsExpanded = true;
+            }
+        }
+
+        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
+        {
+            if (depObj != null)
+            {
+                for (int i = 0; i < VisualTreeHelper.GetChildrenCount(depObj); i++)
+                {
+                    DependencyObject child = VisualTreeHelper.GetChild(depObj, i);
+                    if (child != null && child is T)
+                    {
+                        yield return (T)child;
+                    }
+
+                    foreach (T childOfChild in FindVisualChildren<T>(child))
+                    {
+                        yield return childOfChild;
+                    }
                 }
             }
         }

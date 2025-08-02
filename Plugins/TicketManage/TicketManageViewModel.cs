@@ -211,14 +211,36 @@ namespace GadgetTools.Plugins.TicketManage
             MarkdownPreview = "ワークアイテムをクエリしてチケットを取得してください。\n\nPlease query work items to retrieve tickets.";
             try
             {
-                HtmlPreview = TicketHtmlService.GenerateEmptyStateHtml();
-                System.Diagnostics.Debug.WriteLine("Initial HTML preview set using TicketHtmlService");
+                var initialHtml = TicketHtmlService.GenerateEmptyStateHtml();
+                HtmlPreview = initialHtml;
+                System.Diagnostics.Debug.WriteLine($"Initial HTML preview set using TicketHtmlService. Length: {initialHtml?.Length ?? 0}");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error setting initial HTML preview: {ex.Message}");
                 SetError($"プレビューの初期化に失敗しました: {ex.Message}");
-                HtmlPreview = TicketHtmlService.GenerateEmptyStateHtml(); // Fallback to empty state
+                
+                // Fallback to basic HTML
+                var fallbackHtml = @"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Preview</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; color: #666; }
+        .message { background: #f8f9fa; padding: 30px; border-radius: 8px; border: 1px solid #dee2e6; }
+    </style>
+</head>
+<body>
+    <div class='message'>
+        <h3>📋 チケットプレビュー</h3>
+        <p>ワークアイテムをクエリしてチケットを取得してください。</p>
+        <p>Please query work items to retrieve tickets.</p>
+    </div>
+</body>
+</html>";
+                HtmlPreview = fallbackHtml;
+                System.Diagnostics.Debug.WriteLine("Set fallback HTML preview");
             }
             
             // 設定を読み込み

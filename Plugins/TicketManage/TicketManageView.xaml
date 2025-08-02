@@ -6,20 +6,42 @@
              xmlns:converters="clr-namespace:GadgetTools.Converters"
              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              mc:Ignorable="d" 
-             d:DesignHeight="650" d:DesignWidth="700">
+             d:DesignHeight="700" d:DesignWidth="1000">
+    
+    <UserControl.Resources>
+        <!-- Expanderのカスタムスタイル -->
+        <Style TargetType="Expander">
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="BorderBrush" Value="#D1D1D1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        
+        <Style TargetType="Border" x:Key="ExpanderContentBorder">
+            <Setter Property="BorderBrush" Value="#E1E1E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="#FAFAFA"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="0,5,0,0"/>
+        </Style>
+    </UserControl.Resources>
     
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="3*" MinHeight="300"/>
+            <RowDefinition Height="*" MinHeight="400"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
         <!-- Azure DevOps設定 -->
-        <GroupBox Grid.Row="0" Header="Azure DevOps Configuration" Margin="0,0,0,10">
-            <Grid Margin="10">
+        <Expander Grid.Row="0" Header="Azure DevOps Configuration" IsExpanded="False">
+                <Border Style="{StaticResource ExpanderContentBorder}">
+                    <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -48,14 +70,16 @@
                         Click="GlobalSettings_Click" ToolTip="Configure shared Azure DevOps settings"/>
                 
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Project:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Project}" Margin="0,0,0,5"
-                         ToolTip="Project name in your Azure DevOps organization"/>
-            </Grid>
-        </GroupBox>
+                        <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Project}" Margin="0,0,0,5"
+                                 ToolTip="Project name in your Azure DevOps organization"/>
+                    </Grid>
+                </Border>
+            </Expander>
         
         <!-- クエリ設定 -->
-        <GroupBox Grid.Row="1" Header="Query Settings" Margin="0,0,0,10">
-            <Grid Margin="10">
+        <Expander Grid.Row="1" Header="Query and Filter Settings" IsExpanded="True">
+                <Border Style="{StaticResource ExpanderContentBorder}">
+                    <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -98,14 +122,35 @@
                     <Button Content="🔍 Global" ToolTip="Global Search" Padding="8,3" Margin="5,0,0,0" 
                             Command="{Binding ShowGlobalSearchCommand}"/>
                 </StackPanel>
-                <Button Grid.Row="2" Grid.Column="3" Content="Query Work Items" 
-                        Command="{Binding QueryWorkItemsCommand}"/>
-            </Grid>
-        </GroupBox>
+                        <Button Grid.Row="2" Grid.Column="3" Content="Query Work Items" 
+                                Command="{Binding QueryWorkItemsCommand}"/>
+                    </Grid>
+                </Border>
+            </Expander>
         
         <!-- 結果表示 -->
-        <GroupBox Grid.Row="2" Header="Results" Margin="0,0,0,10">
-            <Grid>
+        <Border Grid.Row="2" BorderBrush="#D1D1D1" BorderThickness="1" Background="White" CornerRadius="4" Margin="0,0,0,10">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="#F5F5F5" BorderBrush="#D1D1D1" BorderThickness="0,0,0,1" Padding="15,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Results and Preview" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Content="▲ Collapse All" x:Name="CollapseAllButton" 
+                                        Click="CollapseAll_Click" Margin="0,0,5,0" 
+                                        Padding="8,3" FontSize="11" 
+                                        ToolTip="Collapse all sections to maximize results area"/>
+                                <Button Content="▼ Expand All" x:Name="ExpandAllButton" 
+                                        Click="ExpandAll_Click" 
+                                        Padding="8,3" FontSize="11"
+                                        ToolTip="Expand all sections"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Grid Margin="15">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="3*" MinWidth="400"/>
                     <ColumnDefinition Width="5"/>
@@ -205,7 +250,7 @@
                               Background="#E0E0E0" ResizeBehavior="PreviousAndNext"/>
                 
                 <!-- 右側: チケットプレビュー -->
-                <GroupBox Grid.Column="2" Header="📋 Ticket Preview" Margin="5,0,0,0">
+                <Border Grid.Column="2" BorderBrush="#D1D1D1" BorderThickness="1" Background="White" CornerRadius="4" Margin="5,0,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -213,35 +258,36 @@
                         </Grid.RowDefinitions>
                         
                         <!-- プレビューヘッダー -->
-                        <Border Grid.Row="0" Background="#E3F2FD" BorderBrush="#1976D2" BorderThickness="0,0,0,2" 
-                                Padding="10,5" Margin="10,10,10,0">
+                        <Border Grid.Row="0" Background="#F5F5F5" BorderBrush="#D1D1D1" BorderThickness="0,0,0,1" Padding="15,10">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="💡 " FontWeight="Bold" Foreground="#1976D2"/>
-                                <TextBlock Text="Select a ticket to view details" 
-                                           Foreground="#424242" FontSize="11"/>
+                                <TextBlock Text="📋" FontWeight="Bold" Margin="0,0,8,0"/>
+                                <TextBlock Text="Ticket Preview" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         
                         <wv2:WebView2 Grid.Row="1" x:Name="PreviewWebView" 
-                                      Margin="10,5,10,10"
+                                      Margin="15"
                                       MinHeight="200"
                                       NavigationCompleted="PreviewWebView_NavigationCompleted"/>
                     </Grid>
-                </GroupBox>
-            </Grid>
-        </GroupBox>
+                </Border>
+                    </Grid>
+                </DockPanel>
+            </Border>
         
         <!-- 出力設定 -->
-        <GroupBox Grid.Row="3" Header="Output Settings" Margin="0,0,0,10">
-            <Grid Margin="10">
+        <Expander Grid.Row="3" Header="Output Settings" IsExpanded="False">
+                <Border Style="{StaticResource ExpanderContentBorder}">
+                    <Grid>
                 <!-- Markdown設定 -->
                 <StackPanel Orientation="Horizontal">
                     <RadioButton Content="Detailed Markdown" IsChecked="{Binding DetailedMarkdown}" Margin="0,0,20,0"/>
                     <RadioButton Content="Table Only" IsChecked="{Binding DetailedMarkdown, Converter={StaticResource BooleanInverseConverter}}" Margin="0,0,20,0"/>
-                    <Button Content="Save to File..." Width="100" Command="{Binding SaveResultCommand}"/>
-                </StackPanel>
-            </Grid>
-        </GroupBox>
+                        <Button Content="Save to File..." Width="100" Command="{Binding SaveResultCommand}"/>
+                    </StackPanel>
+                    </Grid>
+                </Border>
+            </Expander>
         
         <!-- ステータス -->
         <StatusBar Grid.Row="4">
@@ -261,6 +307,6 @@
                     <TextBlock Text="処理中..." FontSize="11"/>
                 </StackPanel>
             </StatusBarItem>
-        </StatusBar>
+            </StatusBar>
     </Grid>
 </UserControl>

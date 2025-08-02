@@ -16,6 +16,16 @@ namespace GadgetTools.Core.Services
         private string _organization = string.Empty;
         private string _personalAccessToken = string.Empty;
         private bool _isConfigured = false;
+        
+        // Query Settings
+        private string _workItemType = "All";
+        private string _state = "All";
+        private int _maxResults = 50;
+        private int _highlightDays = 7;
+        private bool _enableHighlight = true;
+        
+        // Display Settings
+        private bool _detailedMarkdown = true;
 
         public string Organization
         {
@@ -49,6 +59,44 @@ namespace GadgetTools.Core.Services
             private set => SetProperty(ref _isConfigured, value);
         }
 
+        // Query Settings Properties
+        public string WorkItemType
+        {
+            get => _workItemType;
+            set => SetProperty(ref _workItemType, value);
+        }
+
+        public string State
+        {
+            get => _state;
+            set => SetProperty(ref _state, value);
+        }
+
+        public int MaxResults
+        {
+            get => _maxResults;
+            set => SetProperty(ref _maxResults, value);
+        }
+
+        public int HighlightDays
+        {
+            get => _highlightDays;
+            set => SetProperty(ref _highlightDays, value);
+        }
+
+        public bool EnableHighlight
+        {
+            get => _enableHighlight;
+            set => SetProperty(ref _enableHighlight, value);
+        }
+
+        // Display Settings Properties
+        public bool DetailedMarkdown
+        {
+            get => _detailedMarkdown;
+            set => SetProperty(ref _detailedMarkdown, value);
+        }
+
         public event EventHandler? ConfigurationChanged;
 
         private AzureDevOpsConfigService()
@@ -80,8 +128,26 @@ namespace GadgetTools.Core.Services
                         _personalAccessToken = SettingsService.DecryptString(settings.AzureDevOps.EncryptedPersonalAccessToken);
                     }
                     
+                    // Load query settings
+                    _workItemType = settings.AzureDevOps.WorkItemType;
+                    _state = settings.AzureDevOps.State;
+                    _maxResults = settings.AzureDevOps.MaxResults;
+                    _highlightDays = settings.AzureDevOps.HighlightDays;
+                    _enableHighlight = settings.AzureDevOps.EnableHighlight;
+                    
+                    // Load display settings
+                    _detailedMarkdown = settings.AzureDevOps.DetailedMarkdown;
+                    
+                    // Notify all properties changed
                     OnPropertyChanged(nameof(Organization));
                     OnPropertyChanged(nameof(PersonalAccessToken));
+                    OnPropertyChanged(nameof(WorkItemType));
+                    OnPropertyChanged(nameof(State));
+                    OnPropertyChanged(nameof(MaxResults));
+                    OnPropertyChanged(nameof(HighlightDays));
+                    OnPropertyChanged(nameof(EnableHighlight));
+                    OnPropertyChanged(nameof(DetailedMarkdown));
+                    
                     UpdateConfiguredStatus();
                 }
             }
@@ -102,8 +168,19 @@ namespace GadgetTools.Core.Services
                     settings.AzureDevOps = new SettingsService.AzureDevOpsSettings();
                 }
 
+                // Connection settings
                 settings.AzureDevOps.Organization = Organization.Trim();
                 settings.AzureDevOps.EncryptedPersonalAccessToken = SettingsService.EncryptString(PersonalAccessToken);
+
+                // Query settings
+                settings.AzureDevOps.WorkItemType = WorkItemType;
+                settings.AzureDevOps.State = State;
+                settings.AzureDevOps.MaxResults = MaxResults;
+                settings.AzureDevOps.HighlightDays = HighlightDays;
+                settings.AzureDevOps.EnableHighlight = EnableHighlight;
+
+                // Display settings
+                settings.AzureDevOps.DetailedMarkdown = DetailedMarkdown;
 
                 SettingsService.SaveSettings(settings);
             }

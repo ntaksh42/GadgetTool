@@ -4,43 +4,177 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d" 
-             d:DesignHeight="200" d:DesignWidth="600">
+             d:DesignHeight="400" d:DesignWidth="600">
     
-    <GroupBox Header="Azure DevOps Global Configuration" Margin="10">
-        <Grid Margin="10">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Organization:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Organization, UpdateSourceTrigger=PropertyChanged}" 
-                     Margin="0,0,0,5" ToolTip="Azure DevOps organization name (e.g., 'mycompany')"/>
-            
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="PAT Token:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-            <PasswordBox Grid.Row="1" Grid.Column="1" x:Name="PatTokenBox" Margin="0,0,0,5"
-                         ToolTip="Personal Access Token with appropriate permissions"/>
-            
-            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,10,0,10">
-                <Button Content="Test Connection" Width="120" Margin="0,0,10,0" Click="TestConnection_Click"/>
-                <Button Content="Save" Width="80" Margin="0,0,10,0" Click="Save_Click"/>
-                <Ellipse Width="12" Height="12" Margin="10,0,5,0">
-                    <Ellipse.Fill>
-                        <SolidColorBrush Color="{Binding IsConfigured, Converter={StaticResource BooleanToColorConverter}}"/>
-                    </Ellipse.Fill>
-                </Ellipse>
-                <TextBlock Text="{Binding IsConfigured, Converter={StaticResource BooleanToConnectionStatusConverter}}" VerticalAlignment="Center"/>
-            </StackPanel>
-            
-            <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" 
-                       Text="Note: These settings will be shared across TicketManager and PullRequestManager plugins."
-                       FontStyle="Italic" FontSize="11" Foreground="Gray"/>
-        </Grid>
-    </GroupBox>
+    <UserControl.Resources>
+        <!-- Expanderのカスタムスタイル -->
+        <Style TargetType="Expander">
+            <Setter Property="Margin" Value="0,0,0,15"/>
+            <Setter Property="BorderBrush" Value="#D1D1D1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        
+        <Style TargetType="Border" x:Key="ExpanderContentBorder">
+            <Setter Property="BorderBrush" Value="#E1E1E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="#FAFAFA"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="0,5,0,0"/>
+        </Style>
+    </UserControl.Resources>
+    
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10">
+        <StackPanel>
+            <!-- 接続設定グループ -->
+            <Expander Header="🔗 Connection Settings" IsExpanded="True">
+                <Expander.HeaderTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding}" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                            <Ellipse Width="10" Height="10" Margin="10,0,0,0" VerticalAlignment="Center" Fill="Green"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </Expander.HeaderTemplate>
+                <Border Style="{StaticResource ExpanderContentBorder}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Organization:" VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Organization, UpdateSourceTrigger=PropertyChanged}" 
+                                 Margin="0,0,0,10" ToolTip="Azure DevOps organization name (e.g., 'mycompany')"
+                                 BorderBrush="#D1D1D1" Padding="5"/>
+                        
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="PAT Token:" VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <PasswordBox Grid.Row="1" Grid.Column="1" x:Name="PatTokenBox" Margin="0,0,0,10"
+                                     ToolTip="Personal Access Token with appropriate permissions"
+                                     BorderBrush="#D1D1D1" Padding="5"/>
+                        
+                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,10,0,10">
+                            <Button Content="Test Connection" Width="120" Margin="0,0,10,0" Click="TestConnection_Click"
+                                    Background="#007ACC" Foreground="White" BorderThickness="0" Padding="8,5"/>
+                            <Button Content="Save" Width="80" Margin="0,0,10,0" Click="Save_Click"
+                                    Background="#28A745" Foreground="White" BorderThickness="0" Padding="8,5"/>
+                            <Ellipse Width="12" Height="12" Margin="10,0,5,0" VerticalAlignment="Center">
+                                <Ellipse.Fill>
+                                    <SolidColorBrush Color="{Binding IsConfigured, Converter={StaticResource BooleanToColorConverter}}"/>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <TextBlock Text="{Binding IsConfigured, Converter={StaticResource BooleanToConnectionStatusConverter}}" 
+                                       VerticalAlignment="Center" FontWeight="Medium"/>
+                        </StackPanel>
+                        
+                        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" 
+                                   Text="💡 These settings will be shared across TicketManager and PullRequestManager plugins."
+                                   FontStyle="Italic" FontSize="11" Foreground="#666666" Margin="0,5,0,0"/>
+                    </Grid>
+                </Border>
+            </Expander>
+
+            <!-- クエリ設定グループ -->
+            <Expander Header="🔍 Query Settings" IsExpanded="False" Margin="0,0,0,10">
+                <Expander.HeaderTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" FontWeight="Bold" FontSize="14"/>
+                    </DataTemplate>
+                </Expander.HeaderTemplate>
+                <Border Style="{StaticResource ExpanderContentBorder}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Work Item Type:" VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" Text="{Binding WorkItemType, UpdateSourceTrigger=PropertyChanged}" 
+                                  Margin="0,0,0,10" IsEditable="True" ToolTip="Work item type filter (e.g., Bug, Task, User Story)"
+                                  BorderBrush="#D1D1D1" Padding="5">
+                            <ComboBoxItem Content="All"/>
+                            <ComboBoxItem Content="Bug"/>
+                            <ComboBoxItem Content="Task"/>
+                            <ComboBoxItem Content="User Story"/>
+                            <ComboBoxItem Content="Feature"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="State:" VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <ComboBox Grid.Row="1" Grid.Column="1" Text="{Binding State, UpdateSourceTrigger=PropertyChanged}" 
+                                  Margin="0,0,0,10" IsEditable="True" ToolTip="Work item state filter"
+                                  BorderBrush="#D1D1D1" Padding="5">
+                            <ComboBoxItem Content="All"/>
+                            <ComboBoxItem Content="Active"/>
+                            <ComboBoxItem Content="New"/>
+                            <ComboBoxItem Content="Resolved"/>
+                            <ComboBoxItem Content="Closed"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Max Results:" VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MaxResults, UpdateSourceTrigger=PropertyChanged}" 
+                                 Margin="0,0,0,10" ToolTip="Maximum number of results to retrieve (1-200)"
+                                 BorderBrush="#D1D1D1" Padding="5"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Highlight Days:" VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBox Text="{Binding HighlightDays, UpdateSourceTrigger=PropertyChanged}" Width="60"
+                                     ToolTip="Number of days for highlighting recent items"
+                                     BorderBrush="#D1D1D1" Padding="5" Margin="0,0,10,0"/>
+                            <CheckBox Content="Enable highlighting" IsChecked="{Binding EnableHighlight}" 
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" 
+                                   Text="💡 Query settings affect how work items are filtered and displayed."
+                                   FontStyle="Italic" FontSize="11" Foreground="#666666" Margin="0,5,0,0"/>
+                    </Grid>
+                </Border>
+            </Expander>
+
+            <!-- 表示設定グループ -->
+            <Expander Header="🎨 Display Settings" IsExpanded="False" Margin="0,0,0,10">
+                <Expander.HeaderTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" FontWeight="Bold" FontSize="14"/>
+                    </DataTemplate>
+                </Expander.HeaderTemplate>
+                <Border Style="{StaticResource ExpanderContentBorder}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Detailed Preview:" VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <CheckBox Grid.Row="0" Grid.Column="1" Content="Show detailed markdown preview" 
+                                  IsChecked="{Binding DetailedMarkdown}" Margin="0,0,0,10"
+                                  ToolTip="Enable detailed markdown rendering in work item preview"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" 
+                                   Text="💡 Display settings control how information is presented in the UI."
+                                   FontStyle="Italic" FontSize="11" Foreground="#666666" Margin="0,5,0,0"/>
+                    </Grid>
+                </Border>
+            </Expander>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>
