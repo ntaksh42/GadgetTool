@@ -209,14 +209,62 @@
                         <ColumnDefinition Width="2*" MinWidth="350"/>
                     </Grid.ColumnDefinitions>
             
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Filter Controls -->
+                <Grid Grid.Row="0" Margin="5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Filter:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Search in PR titles, descriptions, and author names"/>
+                    <Button Grid.Column="2" Content="Clear" Width="50" 
+                            Margin="5,0,0,0" Command="{Binding ClearAllFiltersCommand}"/>
+                    <Button Grid.Column="3" Content="Clear Column Filters" Width="120" 
+                            Margin="5,0,0,0" Command="{Binding ClearColumnFiltersCommand}"
+                            ToolTip="Clear all column filters"/>
+                    <Button Grid.Column="4" Content="Columns..." Width="80" 
+                            Margin="5,0,0,0" Command="{Binding ShowColumnVisibilityCommand}"
+                            ToolTip="Show/hide columns"/>
+                    <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <!-- Error display -->
+                        <Border Background="#FFEBEE" BorderBrush="#F44336" BorderThickness="1" 
+                                Padding="5" CornerRadius="3" Margin="0,0,10,0"
+                                Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="{Binding ErrorMessage}" Foreground="#D32F2F" FontWeight="Medium" FontSize="11"/>
+                        </Border>
+                        
+                        <!-- Progress indicator -->
+                        <StackPanel Orientation="Horizontal" 
+                                   Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <ProgressBar Width="80" Height="14" IsIndeterminate="True" Margin="0,0,5,0"/>
+                            <TextBlock Text="Loading..." FontSize="11" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="Gray" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
             <!-- Pull Requests DataGrid -->
-            <DataGrid Grid.Column="0" ItemsSource="{Binding FilteredPullRequests}" 
+            <DataGrid Grid.Row="1" ItemsSource="{Binding FilteredPullRequests}" 
                       SelectedItem="{Binding SelectedPullRequest}"
                       AutoGenerateColumns="False" IsReadOnly="True" 
                       GridLinesVisibility="All" HeadersVisibility="Column"
                       CanUserAddRows="False" CanUserDeleteRows="False" 
                       CanUserReorderColumns="True" CanUserResizeColumns="True"
-                      CanUserSortColumns="True" SelectionMode="Single">
+                      CanUserSortColumns="True" SelectionMode="Single"
+                      Style="{StaticResource FilterableDataGridStyle}"
+                      x:Name="PullRequestsDataGrid">
                 <DataGrid.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="📋 Open in Browser" Command="{Binding OpenInBrowserCommand}"/>
@@ -281,6 +329,7 @@
                     </DataGridTextColumn>
                 </DataGrid.Columns>
             </DataGrid>
+            </Grid>
             
             <!-- Splitter -->
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" 

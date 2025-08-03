@@ -180,8 +180,8 @@
                                  ToolTip="Enter text to filter work items (searches in ID, Type, Title, State, Assigned To)"/>
                         <Button Grid.Column="2" Content="Clear" Width="50" 
                                 Margin="5,0,0,0" Command="{Binding ClearFilterCommand}"/>
-                        <Button Grid.Column="3" Content="Clear Excel Filters" Width="120" 
-                                Margin="5,0,0,0" Command="{Binding ClearExcelFiltersCommand}"
+                        <Button Grid.Column="3" Content="Clear Column Filters" Width="120" 
+                                Margin="5,0,0,0" Command="{Binding ClearColumnFiltersCommand}"
                                 ToolTip="Clear all column filters"/>
                         <Button Grid.Column="4" Content="Columns..." Width="80" 
                                 Margin="5,0,0,0" Command="{Binding ShowColumnVisibilityCommand}"

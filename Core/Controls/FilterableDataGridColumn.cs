@@ -15,7 +15,7 @@ namespace GadgetTools.Core.Controls
             DependencyProperty.Register(nameof(PropertyPath), typeof(string), typeof(FilterableDataGridColumn));
 
         public static readonly DependencyProperty FilterManagerProperty = 
-            DependencyProperty.Register(nameof(FilterManager), typeof(ExcelFilterManager), typeof(FilterableDataGridColumn));
+            DependencyProperty.Register(nameof(FilterManager), typeof(ColumnFilterManager), typeof(FilterableDataGridColumn));
 
         public string PropertyPath
         {
@@ -23,9 +23,9 @@ namespace GadgetTools.Core.Controls
             set => SetValue(PropertyPathProperty, value);
         }
 
-        public ExcelFilterManager? FilterManager
+        public ColumnFilterManager? FilterManager
         {
-            get => (ExcelFilterManager?)GetValue(FilterManagerProperty);
+            get => (ColumnFilterManager?)GetValue(FilterManagerProperty);
             set => SetValue(FilterManagerProperty, value);
         }
 
@@ -42,7 +42,7 @@ namespace GadgetTools.Core.Controls
         }
     }
 
-    public class ExcelFilterManager
+    public class ColumnFilterManager
     {
         private readonly Dictionary<string, HashSet<object>> _columnFilters = new();
         private readonly Dictionary<string, List<object>> _originalData = new();
@@ -62,8 +62,8 @@ namespace GadgetTools.Core.Controls
             if (!_originalData.ContainsKey(columnName))
                 return;
 
-            var filterViewModel = new ExcelStyleFilterViewModel();
-            var filterControl = new ExcelStyleFilter { DataContext = filterViewModel };
+            var filterViewModel = new ColumnFilterViewModel();
+            var filterControl = new ColumnFilter { DataContext = filterViewModel };
 
             _currentFilterPopup = new Popup
             {

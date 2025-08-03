@@ -13,6 +13,7 @@ using GadgetTools.Core.Models;
 using GadgetTools.Core.Services;
 using GadgetTools.Core.ViewModels;
 using GadgetTools.Core.Views;
+using GadgetTools.Core.Controls;
 
 namespace GadgetTools.Plugins.PullRequestManagement
 {
@@ -23,6 +24,7 @@ namespace GadgetTools.Plugins.PullRequestManagement
         private IAzureDevOpsPullRequestService? _azureDevOpsService;
         private readonly List<PullRequest> _allPullRequests = new();
         private readonly CollectionViewSource _pullRequestsViewSource = new();
+        private readonly ColumnFilterManager _columnFilterManager = new();
         private string _currentUserName = Environment.UserName;
         private DispatcherTimer? _filterTimer;
 
@@ -205,6 +207,9 @@ namespace GadgetTools.Plugins.PullRequestManagement
         public ICommand CopyPrIdCommand { get; }
         public ICommand ShowAdvancedFilterCommand { get; }
         public ICommand ShowGlobalSearchCommand { get; }
+        public ICommand ShowColumnFilterCommand { get; }
+        public ICommand ClearColumnFiltersCommand { get; }
+        public ICommand ShowColumnVisibilityCommand { get; }
 
         public PullRequestManagementViewModel(IPullRequestSettingsService settingsService)
         {
@@ -226,6 +231,9 @@ namespace GadgetTools.Plugins.PullRequestManagement
             CopyPrIdCommand = new RelayCommand(CopySelectedPullRequestId, CanExecutePullRequestAction);
             ShowAdvancedFilterCommand = new RelayCommand(ShowAdvancedFilter);
             ShowGlobalSearchCommand = new RelayCommand(ShowGlobalSearch);
+            ShowColumnFilterCommand = new RelayCommand<string>(ShowColumnFilter);
+            ClearColumnFiltersCommand = new RelayCommand(ClearColumnFilters);
+            ShowColumnVisibilityCommand = new RelayCommand(ShowColumnVisibility);
 
             // Initialize collection view
             _pullRequestsViewSource.Source = PullRequests;
@@ -239,6 +247,9 @@ namespace GadgetTools.Plugins.PullRequestManagement
             
             // Monitor shared config changes
             _configService.ConfigurationChanged += OnSharedConfigChanged;
+            
+            // Monitor column filter changes
+            _columnFilterManager.FilterChanged += OnColumnFilterChanged;
         }
 
         private async Task LoadPullRequestsAsync()
@@ -282,6 +293,10 @@ namespace GadgetTools.Plugins.PullRequestManagement
                 }
 
                 ApplyFilters();
+                
+                // Update column filter data
+                UpdateColumnFilterData();
+                
                 IsConnected = true;
                 StatusMessage = $"Loaded {pullRequests.Count()} pull requests";
             }
@@ -376,7 +391,27 @@ namespace GadgetTools.Plugins.PullRequestManagement
                 }
             }
 
-            e.Accepted = true;
+            // Column filter check
+            bool passesColumnFilter = true;
+            if (_columnFilterManager.HasActiveFilters)
+            {
+                var propertyGetters = new Dictionary<string, Func<object, object?>>
+                {
+                    ["ID"] = (item) => ((PullRequest)item).Id,
+                    ["Title"] = (item) => ((PullRequest)item).Title ?? "",
+                    ["Status"] = (item) => ((PullRequest)item).Status ?? "",
+                    ["Approval"] = (item) => ((PullRequest)item).ApprovalStatusShort ?? "",
+                    ["Created By"] = (item) => ((PullRequest)item).CreatedBy ?? "",
+                    ["Created Date"] = (item) => ((PullRequest)item).CreatedDate.ToString("yyyy-MM-dd"),
+                    ["Source Branch"] = (item) => ((PullRequest)item).SourceBranch ?? "",
+                    ["Target Branch"] = (item) => ((PullRequest)item).TargetBranch ?? "",
+                    ["Modified Files"] = (item) => ((PullRequest)item).ModifiedFilesDisplay ?? ""
+                };
+
+                passesColumnFilter = _columnFilterManager.ShouldIncludeItem(pr, propertyGetters);
+            }
+
+            e.Accepted = passesColumnFilter;
         }
 
         private void ApplyMyPRsFilter()
@@ -455,6 +490,7 @@ namespace GadgetTools.Plugins.PullRequestManagement
             FromDate = null;
             SelectedStatus = "All";
             SelectedSavedSearch = null;
+            _columnFilterManager.ClearAllFilters();
         }
 
         private void LoadSavedSearch(SavedSearch savedSearch)
@@ -657,8 +693,9 @@ namespace GadgetTools.Plugins.PullRequestManagement
                 System.Diagnostics.Debug.WriteLine($"Settings save error: {ex.Message}");
             }
 
-            // Unsubscribe from shared config events
+            // Unsubscribe from events
             _configService.ConfigurationChanged -= OnSharedConfigChanged;
+            _columnFilterManager.FilterChanged -= OnColumnFilterChanged;
             
             _filterTimer?.Stop();
             _azureDevOpsService?.Dispose();
@@ -783,5 +820,78 @@ namespace GadgetTools.Plugins.PullRequestManagement
         }
 
         #endregion
+
+        #region Column Filter Methods
+
+        private void ShowColumnFilter(string? columnName)
+        {
+            if (string.IsNullOrEmpty(columnName) || PullRequests.Count == 0)
+                return;
+
+            System.Diagnostics.Debug.WriteLine($"Showing filter for column: {columnName}");
+            ColumnFilterRequested?.Invoke(this, new ColumnFilterRequestedEventArgs(columnName));
+        }
+
+        private void ClearColumnFilters()
+        {
+            _columnFilterManager.ClearAllFilters();
+        }
+
+        private void OnColumnFilterChanged(object? sender, EventArgs e)
+        {
+            ApplyFilters();
+        }
+
+        private void UpdateColumnFilterData()
+        {
+            if (PullRequests.Count == 0) return;
+
+            try
+            {
+                // Register column data for filtering
+                _columnFilterManager.RegisterColumn("ID", PullRequests.Select(pr => (object)pr.Id));
+                _columnFilterManager.RegisterColumn("Title", PullRequests.Select(pr => (object)(pr.Title ?? "")));
+                _columnFilterManager.RegisterColumn("Status", PullRequests.Select(pr => (object)(pr.Status ?? "")));
+                _columnFilterManager.RegisterColumn("Approval", PullRequests.Select(pr => (object)(pr.ApprovalStatusShort ?? "")));
+                _columnFilterManager.RegisterColumn("Created By", PullRequests.Select(pr => (object)(pr.CreatedBy ?? "")));
+                _columnFilterManager.RegisterColumn("Created Date", PullRequests.Select(pr => (object)pr.CreatedDate.ToString("yyyy-MM-dd")));
+                _columnFilterManager.RegisterColumn("Source Branch", PullRequests.Select(pr => (object)(pr.SourceBranch ?? "")));
+                _columnFilterManager.RegisterColumn("Target Branch", PullRequests.Select(pr => (object)(pr.TargetBranch ?? "")));
+                _columnFilterManager.RegisterColumn("Modified Files", PullRequests.Select(pr => (object)(pr.ModifiedFilesDisplay ?? "")));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating column filter data: {ex.Message}");
+            }
+        }
+
+        public event EventHandler<ColumnFilterRequestedEventArgs>? ColumnFilterRequested;
+        public event EventHandler? ShowColumnVisibilityRequested;
+
+        private void ShowColumnVisibility()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("ShowColumnVisibility command executed");
+                ShowColumnVisibilityRequested?.Invoke(this, EventArgs.Empty);
+                System.Diagnostics.Debug.WriteLine("ShowColumnVisibilityRequested event fired");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in ShowColumnVisibility: {ex.Message}");
+            }
+        }
+
+        #endregion
+    }
+
+    public class ColumnFilterRequestedEventArgs : EventArgs
+    {
+        public string ColumnName { get; }
+
+        public ColumnFilterRequestedEventArgs(string columnName)
+        {
+            ColumnName = columnName;
+        }
     }
 }

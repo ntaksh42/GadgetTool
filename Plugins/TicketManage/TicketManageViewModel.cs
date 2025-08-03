@@ -36,7 +36,7 @@ namespace GadgetTools.Plugins.TicketManage
 
         private readonly CollectionViewSource _workItemsViewSource = new();
         private readonly List<WorkItem> _allWorkItems = new();
-        private readonly ExcelFilterManager _excelFilterManager = new();
+        private readonly ColumnFilterManager _columnFilterManager = new();
         #endregion
 
         #region Collections
@@ -194,7 +194,7 @@ namespace GadgetTools.Plugins.TicketManage
         public ICommand ShowAdvancedFilterCommand { get; }
         public ICommand ShowGlobalSearchCommand { get; }
         public ICommand ShowColumnFilterCommand { get; }
-        public ICommand ClearExcelFiltersCommand { get; }
+        public ICommand ClearColumnFiltersCommand { get; }
         public ICommand ShowColumnVisibilityCommand { get; }
         #endregion
 
@@ -209,7 +209,7 @@ namespace GadgetTools.Plugins.TicketManage
             ShowAdvancedFilterCommand = new RelayCommand(ShowAdvancedFilter);
             ShowGlobalSearchCommand = new RelayCommand(ShowGlobalSearch);
             ShowColumnFilterCommand = new RelayCommand<string>(ShowColumnFilter);
-            ClearExcelFiltersCommand = new RelayCommand(ClearExcelFilters);
+            ClearColumnFiltersCommand = new RelayCommand(ClearColumnFilters);
             ShowColumnVisibilityCommand = new RelayCommand(ShowColumnVisibility);
 
             _workItemsViewSource.Source = WorkItems;
@@ -260,8 +260,8 @@ namespace GadgetTools.Plugins.TicketManage
             // 共通設定の変更を監視
             _configService.ConfigurationChanged += OnSharedConfigChanged;
             
-            // Excel風フィルタの変更を監視
-            _excelFilterManager.FilterChanged += OnExcelFilterChanged;
+            // 列フィルタの変更を監視
+            _columnFilterManager.FilterChanged += OnColumnFilterChanged;
         }
 
         private async Task TestConnectionAsync()
@@ -334,8 +334,8 @@ namespace GadgetTools.Plugins.TicketManage
                 RefreshWorkItemsView();
                 GenerateMarkdownPreview();
                 
-                // Excel風フィルタのデータを更新
-                UpdateExcelFilterData();
+                // 列フィルタのデータを更新
+                UpdateColumnFilterData();
 
                 IsConnected = true;
                 StatusMessage = $"✅ {workItems.Count}件のワークアイテムを取得しました";
@@ -416,9 +416,9 @@ namespace GadgetTools.Plugins.TicketManage
                     passesTextFilter = searchableText.Any(text => text.Contains(filterText));
                 }
 
-                // Excel風フィルタもチェック
-                bool passesExcelFilter = true;
-                if (_excelFilterManager.HasActiveFilters)
+                // 列フィルタもチェック
+                bool passesColumnFilter = true;
+                if (_columnFilterManager.HasActiveFilters)
                 {
                     var propertyGetters = new Dictionary<string, Func<object, object?>>
                     {
@@ -432,10 +432,10 @@ namespace GadgetTools.Plugins.TicketManage
                         ["Last Updated"] = (item) => ((WorkItem)item).Fields.ChangedDate.ToString("yyyy-MM-dd HH:mm")
                     };
 
-                    passesExcelFilter = _excelFilterManager.ShouldIncludeItem(workItem, propertyGetters);
+                    passesColumnFilter = _columnFilterManager.ShouldIncludeItem(workItem, propertyGetters);
                 }
 
-                e.Accepted = passesTextFilter && passesExcelFilter;
+                e.Accepted = passesTextFilter && passesColumnFilter;
             }
             else
             {
@@ -895,7 +895,7 @@ namespace GadgetTools.Plugins.TicketManage
 
         #endregion
 
-        #region Excel Style Filter Methods
+        #region Column Filter Methods
 
         private void ShowColumnFilter(string? columnName)
         {
@@ -909,35 +909,35 @@ namespace GadgetTools.Plugins.TicketManage
             ColumnFilterRequested?.Invoke(this, new ColumnFilterRequestedEventArgs(columnName));
         }
 
-        private void ClearExcelFilters()
+        private void ClearColumnFilters()
         {
-            _excelFilterManager.ClearAllFilters();
+            _columnFilterManager.ClearAllFilters();
         }
 
-        private void OnExcelFilterChanged(object? sender, EventArgs e)
+        private void OnColumnFilterChanged(object? sender, EventArgs e)
         {
             RefreshWorkItemsView();
         }
 
-        private void UpdateExcelFilterData()
+        private void UpdateColumnFilterData()
         {
             if (WorkItems.Count == 0) return;
 
             try
             {
                 // 各列のデータを登録
-                _excelFilterManager.RegisterColumn("ID", WorkItems.Select(w => (object)w.Id));
-                _excelFilterManager.RegisterColumn("Type", WorkItems.Select(w => (object)(w.Fields.WorkItemType ?? "")));
-                _excelFilterManager.RegisterColumn("Title", WorkItems.Select(w => (object)(w.Fields.Title ?? "")));
-                _excelFilterManager.RegisterColumn("State", WorkItems.Select(w => (object)(w.Fields.State ?? "")));
-                _excelFilterManager.RegisterColumn("Assigned To", WorkItems.Select(w => (object)(w.Fields.AssignedTo?.DisplayName ?? "")));
-                _excelFilterManager.RegisterColumn("Priority", WorkItems.Select(w => (object)w.Fields.Priority.ToString()));
-                _excelFilterManager.RegisterColumn("Created", WorkItems.Select(w => (object)(w.Fields.CreatedDate.ToString("yyyy-MM-dd"))));
-                _excelFilterManager.RegisterColumn("Last Updated", WorkItems.Select(w => (object)(w.Fields.ChangedDate.ToString("yyyy-MM-dd HH:mm"))));
+                _columnFilterManager.RegisterColumn("ID", WorkItems.Select(w => (object)w.Id));
+                _columnFilterManager.RegisterColumn("Type", WorkItems.Select(w => (object)(w.Fields.WorkItemType ?? "")));
+                _columnFilterManager.RegisterColumn("Title", WorkItems.Select(w => (object)(w.Fields.Title ?? "")));
+                _columnFilterManager.RegisterColumn("State", WorkItems.Select(w => (object)(w.Fields.State ?? "")));
+                _columnFilterManager.RegisterColumn("Assigned To", WorkItems.Select(w => (object)(w.Fields.AssignedTo?.DisplayName ?? "")));
+                _columnFilterManager.RegisterColumn("Priority", WorkItems.Select(w => (object)w.Fields.Priority.ToString()));
+                _columnFilterManager.RegisterColumn("Created", WorkItems.Select(w => (object)(w.Fields.CreatedDate.ToString("yyyy-MM-dd"))));
+                _columnFilterManager.RegisterColumn("Last Updated", WorkItems.Select(w => (object)(w.Fields.ChangedDate.ToString("yyyy-MM-dd HH:mm"))));
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error updating Excel filter data: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error updating column filter data: {ex.Message}");
             }
         }
 

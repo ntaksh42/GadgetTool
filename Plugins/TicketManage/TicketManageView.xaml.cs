@@ -8,6 +8,7 @@ using System.Windows.Media;
 using GadgetTools.Core.Views;
 using GadgetTools.Core.Controls;
 using GadgetTools.Core.ViewModels;
+using GadgetTools.Core.Services;
 using GadgetTools.Shared.Models;
 
 namespace GadgetTools.Plugins.TicketManage
@@ -23,10 +24,13 @@ namespace GadgetTools.Plugins.TicketManage
         private string _lastNavigatedContent = "";
         private bool _isNavigating = false;
         private Popup? _currentFilterPopup;
+        private readonly DataGridSettingsService _gridSettingsService;
+        private const string GRID_ID = "TicketManage.WorkItems";
 
         public TicketManageView()
         {
             InitializeComponent();
+            _gridSettingsService = DataGridSettingsService.Instance;
             Loaded += TicketManageView_Loaded;
             Unloaded += TicketManageView_Unloaded;
             DataContextChanged += TicketManageView_DataContextChanged;
@@ -234,6 +238,12 @@ namespace GadgetTools.Plugins.TicketManage
 
             try
             {
+                // DataGrid設定を最終保存
+                SaveDataGridSettings();
+
+                // DataGrid設定監視のクリーンアップ
+                CleanupDataGridSettingsWatcher();
+
                 // Unsubscribe from events
                 if (_viewModel != null)
                 {
@@ -370,8 +380,8 @@ namespace GadgetTools.Plugins.TicketManage
 
             try
             {
-                var filterViewModel = new ExcelStyleFilterViewModel();
-                var filterControl = new ExcelStyleFilter { DataContext = filterViewModel };
+                var filterViewModel = new ColumnFilterViewModel();
+                var filterControl = new ColumnFilter { DataContext = filterViewModel };
 
                 _currentFilterPopup = new Popup
                 {
@@ -388,7 +398,7 @@ namespace GadgetTools.Plugins.TicketManage
                     // ViewModelのフィルタマネージャーに直接適用
                     if (_viewModel != null)
                     {
-                        var manager = GetExcelFilterManager();
+                        var manager = GetColumnFilterManager();
                         manager?.ApplyFilter(args.ColumnName, args.SelectedValues);
                     }
                     CloseCurrentFilter();
@@ -401,7 +411,7 @@ namespace GadgetTools.Plugins.TicketManage
 
                 // データを初期化
                 var columnData = GetColumnData(columnName);
-                var currentFilters = GetExcelFilterManager()?.GetActiveFilters();
+                var currentFilters = GetColumnFilterManager()?.GetActiveFilters();
                 var currentSelection = currentFilters?.ContainsKey(columnName) == true ? currentFilters[columnName] : null;
                 
                 filterViewModel.Initialize(columnName, columnData, currentSelection);
@@ -423,14 +433,14 @@ namespace GadgetTools.Plugins.TicketManage
             }
         }
 
-        private ExcelFilterManager? GetExcelFilterManager()
+        private ColumnFilterManager? GetColumnFilterManager()
         {
             // Reflectionを使ってprivate fieldにアクセス（実際の実装では適切なアクセサーを提供すべき）
             if (_viewModel == null) return null;
             
-            var fieldInfo = _viewModel.GetType().GetField("_excelFilterManager", 
+            var fieldInfo = _viewModel.GetType().GetField("_columnFilterManager", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            return fieldInfo?.GetValue(_viewModel) as ExcelFilterManager;
+            return fieldInfo?.GetValue(_viewModel) as ColumnFilterManager;
         }
 
         private IEnumerable<object> GetColumnData(string columnName)
@@ -480,7 +490,14 @@ namespace GadgetTools.Plugins.TicketManage
                 
                 // 直接的な右クリックメニューを設定
                 SetupSimpleRightClickMenu();
-                System.Diagnostics.Debug.WriteLine("Simple right-click menu setup completed");
+                
+                // DataGrid設定を復元
+                RestoreDataGridSettings();
+                
+                // 設定変更の監視を開始
+                SetupDataGridSettingsWatcher();
+                
+                System.Diagnostics.Debug.WriteLine("DataGrid setup completed");
             }
             catch (Exception ex)
             {
@@ -578,6 +595,26 @@ namespace GadgetTools.Plugins.TicketManage
                     System.Windows.MessageBox.Show("すべての列を表示しました。", "完了", System.Windows.MessageBoxButton.OK);
                 };
                 contextMenu.Items.Add(showAllItem);
+
+                contextMenu.Items.Add(new Separator());
+
+                // 列設定をリセットするメニューアイテム
+                var resetSettingsItem = new MenuItem { Header = "列設定をリセット" };
+                resetSettingsItem.Click += (s, args) =>
+                {
+                    var result = System.Windows.MessageBox.Show(
+                        "列の設定をすべてリセットしますか？\n（表示状態、幅、順序がデフォルトに戻ります）", 
+                        "確認", 
+                        System.Windows.MessageBoxButton.YesNo, 
+                        System.Windows.MessageBoxImage.Question);
+                    
+                    if (result == System.Windows.MessageBoxResult.Yes)
+                    {
+                        ResetDataGridSettings();
+                        System.Windows.MessageBox.Show("列設定をリセットしました。", "完了", System.Windows.MessageBoxButton.OK);
+                    }
+                };
+                contextMenu.Items.Add(resetSettingsItem);
 
                 contextMenu.PlacementTarget = header;
                 contextMenu.IsOpen = true;
@@ -698,5 +735,148 @@ namespace GadgetTools.Plugins.TicketManage
                 System.Windows.MessageBox.Show($"ダイアログ作成エラー: {ex.Message}", "エラー", System.Windows.MessageBoxButton.OK);
             }
         }
+
+        #region DataGrid Settings Management
+
+        /// <summary>
+        /// DataGrid設定を復元
+        /// </summary>
+        private void RestoreDataGridSettings()
+        {
+            try
+            {
+                if (WorkItemsDataGrid.Columns.Count > 0)
+                {
+                    _gridSettingsService.RestoreGridSettings(WorkItemsDataGrid, GRID_ID);
+                    System.Diagnostics.Debug.WriteLine("DataGrid settings restored");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error restoring DataGrid settings: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// DataGrid設定変更の監視を設定
+        /// </summary>
+        private void SetupDataGridSettingsWatcher()
+        {
+            try
+            {
+                // 列の表示状態変更を監視
+                foreach (var column in WorkItemsDataGrid.Columns)
+                {
+                    var descriptor = DependencyPropertyDescriptor.FromProperty(DataGridColumn.VisibilityProperty, typeof(DataGridColumn));
+                    descriptor?.AddValueChanged(column, OnColumnSettingsChanged);
+
+                    var widthDescriptor = DependencyPropertyDescriptor.FromProperty(DataGridColumn.WidthProperty, typeof(DataGridColumn));
+                    widthDescriptor?.AddValueChanged(column, OnColumnSettingsChanged);
+
+                    var displayIndexDescriptor = DependencyPropertyDescriptor.FromProperty(DataGridColumn.DisplayIndexProperty, typeof(DataGridColumn));
+                    displayIndexDescriptor?.AddValueChanged(column, OnColumnSettingsChanged);
+                }
+
+                System.Diagnostics.Debug.WriteLine("DataGrid settings watcher setup completed");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting up DataGrid settings watcher: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 列設定変更時のコールバック
+        /// </summary>
+        private void OnColumnSettingsChanged(object? sender, EventArgs e)
+        {
+            try
+            {
+                // 設定変更を自動保存（デバウンスのため少し遅延）
+                Task.Delay(500).ContinueWith(_ =>
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        SaveDataGridSettings();
+                    });
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in OnColumnSettingsChanged: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// DataGrid設定を保存
+        /// </summary>
+        private void SaveDataGridSettings()
+        {
+            try
+            {
+                if (WorkItemsDataGrid.Columns.Count > 0)
+                {
+                    _gridSettingsService.SaveGridSettings(WorkItemsDataGrid, GRID_ID);
+                    System.Diagnostics.Debug.WriteLine("DataGrid settings saved");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving DataGrid settings: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// DataGrid設定をリセット
+        /// </summary>
+        private void ResetDataGridSettings()
+        {
+            try
+            {
+                _gridSettingsService.DeleteGridSettings(GRID_ID);
+                
+                // すべての列を表示状態にリセット
+                foreach (var column in WorkItemsDataGrid.Columns)
+                {
+                    column.Visibility = Visibility.Visible;
+                    column.Width = DataGridLength.SizeToHeader;
+                }
+
+                System.Diagnostics.Debug.WriteLine("DataGrid settings reset");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error resetting DataGrid settings: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// DataGrid設定監視のクリーンアップ
+        /// </summary>
+        private void CleanupDataGridSettingsWatcher()
+        {
+            try
+            {
+                foreach (var column in WorkItemsDataGrid.Columns)
+                {
+                    var descriptor = DependencyPropertyDescriptor.FromProperty(DataGridColumn.VisibilityProperty, typeof(DataGridColumn));
+                    descriptor?.RemoveValueChanged(column, OnColumnSettingsChanged);
+
+                    var widthDescriptor = DependencyPropertyDescriptor.FromProperty(DataGridColumn.WidthProperty, typeof(DataGridColumn));
+                    widthDescriptor?.RemoveValueChanged(column, OnColumnSettingsChanged);
+
+                    var displayIndexDescriptor = DependencyPropertyDescriptor.FromProperty(DataGridColumn.DisplayIndexProperty, typeof(DataGridColumn));
+                    displayIndexDescriptor?.RemoveValueChanged(column, OnColumnSettingsChanged);
+                }
+
+                System.Diagnostics.Debug.WriteLine("DataGrid settings watcher cleanup completed");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error cleaning up DataGrid settings watcher: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }

@@ -46,7 +46,7 @@ namespace GadgetTools.Core.ViewModels
         }
     }
 
-    public class ExcelStyleFilterViewModel : INotifyPropertyChanged
+    public class ColumnFilterViewModel : INotifyPropertyChanged
     {
         private string _columnName = string.Empty;
         private string _searchText = string.Empty;
@@ -89,10 +89,10 @@ namespace GadgetTools.Core.ViewModels
         public ICommand ClearAllCommand { get; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
-        public event EventHandler<ExcelFilterAppliedEventArgs>? FilterApplied;
+        public event EventHandler<ColumnFilterAppliedEventArgs>? FilterApplied;
         public event EventHandler? FilterCancelled;
 
-        public ExcelStyleFilterViewModel()
+        public ColumnFilterViewModel()
         {
             ApplyFilterCommand = new RelayCommand(ApplyFilter);
             CancelFilterCommand = new RelayCommand(CancelFilter);
@@ -177,7 +177,7 @@ namespace GadgetTools.Core.ViewModels
         private void ApplyFilter()
         {
             var selectedValues = _allFilterValues.Where(v => v.IsSelected).Select(v => v.Value).Where(v => v != null).ToHashSet()!;
-            FilterApplied?.Invoke(this, new ExcelFilterAppliedEventArgs(ColumnName, selectedValues));
+            FilterApplied?.Invoke(this, new ColumnFilterAppliedEventArgs(ColumnName, selectedValues));
         }
 
         private void CancelFilter()
@@ -199,12 +199,12 @@ namespace GadgetTools.Core.ViewModels
         }
     }
 
-    public class ExcelFilterAppliedEventArgs : EventArgs
+    public class ColumnFilterAppliedEventArgs : EventArgs
     {
         public string ColumnName { get; }
         public HashSet<object> SelectedValues { get; }
 
-        public ExcelFilterAppliedEventArgs(string columnName, HashSet<object> selectedValues)
+        public ColumnFilterAppliedEventArgs(string columnName, HashSet<object> selectedValues)
         {
             ColumnName = columnName;
             SelectedValues = selectedValues;
