@@ -83,6 +83,9 @@ namespace GadgetTools.Shared.Models
 
         [JsonProperty("System.Tags")]
         public string Tags { get; set; } = "";
+        
+        [JsonProperty("System.TeamProject")]
+        public string TeamProject { get; set; } = "";
 
         [JsonProperty("Microsoft.VSTS.Common.Priority")]
         public int Priority { get; set; } = 2;
@@ -166,14 +169,19 @@ namespace GadgetTools.Shared.Models
     public class WorkItemQueryRequest
     {
         public string Organization { get; set; } = "";
-        public string Project { get; set; } = "";
+        public List<string> Projects { get; set; } = new List<string>();
+        public string Project { get; set; } = ""; // 後方互換性のため保持
         public string WorkItemType { get; set; } = ""; // Bug, Task, User Story, etc. (empty = all types)
         public string State { get; set; } = ""; // Active, Resolved, Closed, etc.
         public string AssignedTo { get; set; } = "";
         public int MaxResults { get; set; } = 100;
-        public string AreaPath { get; set; } = "";
-        public string IterationPath { get; set; } = "";
-        public string Area { get; set; } = ""; // UI用のエイリアス
-        public string Iteration { get; set; } = ""; // UI用のエイリアス
+        public List<string> AreaPaths { get; set; } = new List<string>();
+        public List<string> IterationPaths { get; set; } = new List<string>();
+        public string AreaPath { get; set; } = ""; // 後方互換性のため保持
+        public string IterationPath { get; set; } = ""; // 後方互換性のため保持
+        public List<string> Areas { get; set; } = new List<string>(); // UI用のエイリアス
+        public List<string> Iterations { get; set; } = new List<string>(); // UI用のエイリアス
+        public string Area { get; set; } = ""; // 後方互換性のため保持
+        public string Iteration { get; set; } = ""; // 後方互換性のため保持
     }
 }

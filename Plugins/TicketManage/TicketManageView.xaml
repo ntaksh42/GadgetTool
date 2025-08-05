@@ -19,6 +19,30 @@
             <Setter Property="FontSize" Value="14"/>
         </Style>
         
+        <!-- プレビューテキストのスタイル -->
+        <Style x:Key="PreviewTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#555"/>
+            <Setter Property="Background" Value="#F8F9FA"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+            <Style.Triggers>
+                <Trigger Property="Text" Value="No projects selected">
+                    <Setter Property="Foreground" Value="#999"/>
+                    <Setter Property="FontStyle" Value="Italic"/>
+                </Trigger>
+                <Trigger Property="Text" Value="All iterations">
+                    <Setter Property="Foreground" Value="#999"/>
+                    <Setter Property="FontStyle" Value="Italic"/>
+                </Trigger>
+                <Trigger Property="Text" Value="All areas">
+                    <Setter Property="Foreground" Value="#999"/>
+                    <Setter Property="FontStyle" Value="Italic"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
         <Style TargetType="Border" x:Key="ExpanderContentBorder">
             <Setter Property="BorderBrush" Value="#E1E1E1"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -69,9 +93,21 @@
                 <Button Grid.Row="0" Grid.Column="2" Content="⚙ Global Settings" Width="120" Margin="5,0,0,5" 
                         Click="GlobalSettings_Click" ToolTip="Configure shared Azure DevOps settings"/>
                 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Project:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                        <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Project}" Margin="0,0,0,5"
-                                 ToolTip="Project name in your Azure DevOps organization"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Projects:" VerticalAlignment="Top" Margin="0,5,10,5"/>
+                <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,5">
+                    <!-- Input Controls -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                        <TextBox Text="{Binding Project}" Width="150" Margin="0,0,10,0"
+                                 ToolTip="Single project name (for compatibility)"/>
+                        <Button Content="..." Width="30" Height="23" ToolTip="Select multiple projects" 
+                                Click="SelectProjects_Click"/>
+                        <TextBlock Text="{Binding Projects.Count}" VerticalAlignment="Center" Margin="10,0,5,0" FontWeight="Medium"/>
+                        <TextBlock Text="selected" VerticalAlignment="Center" FontSize="11" Foreground="Gray"/>
+                    </StackPanel>
+                    <!-- Preview -->
+                    <TextBlock Text="{Binding ProjectsPreview}" Style="{StaticResource PreviewTextStyle}"
+                               MaxWidth="400" ToolTip="{Binding ProjectsPreview}"/>
+                </StackPanel>
                     </Grid>
                 </Border>
             </Expander>
@@ -81,6 +117,7 @@
                 <Border Style="{StaticResource ExpanderContentBorder}">
                     <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -102,13 +139,35 @@
                           SelectedItem="{Binding State}" Margin="0,0,0,5"/>
                 
                 <!-- 2行目：Iteration と Area -->
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Iteration:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Iteration}" Margin="0,0,10,5"
-                         ToolTip="Enter iteration/sprint path (e.g., ProjectName\Sprint 1)"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Iterations:" VerticalAlignment="Top" Margin="0,5,10,5"/>
+                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,10,5">
+                    <!-- Input Controls -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
+                        <TextBox Text="{Binding Iteration}" Width="100" Margin="0,0,5,0"
+                                 ToolTip="Single iteration (for compatibility)"/>
+                        <Button Content="..." Width="25" Height="23" ToolTip="Select multiple iterations" 
+                                Click="SelectIterations_Click"/>
+                        <TextBlock Text="{Binding Iterations.Count}" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="10" FontWeight="Medium"/>
+                    </StackPanel>
+                    <!-- Preview -->
+                    <TextBlock Text="{Binding IterationsPreview}" Style="{StaticResource PreviewTextStyle}"
+                               MaxWidth="180" ToolTip="{Binding IterationsPreview}"/>
+                </StackPanel>
                 
-                <TextBlock Grid.Row="1" Grid.Column="2" Text="Area:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Area}" Margin="0,0,0,5"
-                         ToolTip="Enter area path (e.g., ProjectName\Team1\Feature)"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="Areas:" VerticalAlignment="Top" Margin="0,5,10,5"/>
+                <StackPanel Grid.Row="1" Grid.Column="3" Margin="0,0,0,5">
+                    <!-- Input Controls -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
+                        <TextBox Text="{Binding Area}" Width="100" Margin="0,0,5,0"
+                                 ToolTip="Single area (for compatibility)"/>
+                        <Button Content="..." Width="25" Height="23" ToolTip="Select multiple areas" 
+                                Click="SelectAreas_Click"/>
+                        <TextBlock Text="{Binding Areas.Count}" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="10" FontWeight="Medium"/>
+                    </StackPanel>
+                    <!-- Preview -->
+                    <TextBlock Text="{Binding AreasPreview}" Style="{StaticResource PreviewTextStyle}"
+                               MaxWidth="180" ToolTip="{Binding AreasPreview}"/>
+                </StackPanel>
                 
                 <!-- 3行目：Max Results と Buttons -->
                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Max Results:" VerticalAlignment="Center" Margin="0,0,10,0"/>
@@ -124,6 +183,16 @@
                 </StackPanel>
                         <Button Grid.Row="2" Grid.Column="3" Content="Query Work Items" 
                                 Command="{Binding QueryWorkItemsCommand}"/>
+                                
+                <!-- 4行目：検索条件サマリー -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Current Criteria:" VerticalAlignment="Top" Margin="0,10,10,0" FontWeight="Medium"/>
+                <Border Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" 
+                        Background="#F0F8FF" BorderBrush="#B0D4F1" BorderThickness="1" 
+                        CornerRadius="4" Padding="8" Margin="0,10,0,0">
+                    <TextBlock Text="{Binding SearchCriteriaSummary}" 
+                               TextWrapping="Wrap" FontSize="11" Foreground="#2C5282"
+                               ToolTip="Current search criteria that will be applied to the query"/>
+                </Border>
                     </Grid>
                 </Border>
             </Expander>

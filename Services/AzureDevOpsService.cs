@@ -25,6 +25,66 @@ namespace GadgetTools.Services
         {
             try
             {
+                var allWorkItems = new List<WorkItem>();
+                var projects = GetProjectsToQuery(request);
+                
+                foreach (var project in projects)
+                {
+                    var projectRequest = new WorkItemQueryRequest
+                    {
+                        Organization = request.Organization,
+                        Project = project,
+                        WorkItemType = request.WorkItemType,
+                        State = request.State,
+                        AssignedTo = request.AssignedTo,
+                        MaxResults = request.MaxResults,
+                        AreaPaths = request.AreaPaths,
+                        IterationPaths = request.IterationPaths,
+                        // 後方互換性のため
+                        AreaPath = request.AreaPath,
+                        IterationPath = request.IterationPath
+                    };
+                    
+                    var projectWorkItems = await GetWorkItemsForProjectAsync(projectRequest);
+                    allWorkItems.AddRange(projectWorkItems);
+                    
+                    // MaxResultsに達した場合は停止
+                    if (allWorkItems.Count >= request.MaxResults)
+                    {
+                        break;
+                    }
+                }
+                
+                // MaxResultsでカット
+                return allWorkItems.Take(request.MaxResults).ToList();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"ワークアイテムの取得に失敗しました: {ex.Message}", ex);
+            }
+        }
+        
+        private List<string> GetProjectsToQuery(WorkItemQueryRequest request)
+        {
+            // 複数プロジェクトが指定されている場合はそれを使用
+            if (request.Projects?.Any() == true)
+            {
+                return request.Projects;
+            }
+            
+            // 単一プロジェクトが指定されている場合（後方互換性）
+            if (!string.IsNullOrWhiteSpace(request.Project))
+            {
+                return new List<string> { request.Project };
+            }
+            
+            throw new ArgumentException("プロジェクトが指定されていません。");
+        }
+        
+        private async Task<List<WorkItem>> GetWorkItemsForProjectAsync(WorkItemQueryRequest request)
+        {
+            try
+            {
                 // WIQL (Work Item Query Language) クエリを構築
                 var wiqlQuery = BuildWiqlQuery(request);
                 
@@ -95,22 +155,49 @@ namespace GadgetTools.Services
                 conditions.Add($"[System.AssignedTo] = '{request.AssignedTo}'");
             }
             
-            // エリアパス条件
-            if (!string.IsNullOrEmpty(request.AreaPath))
+            // エリアパス条件（複数対応）
+            var areaConditions = new List<string>();
+            if (request.AreaPaths?.Any() == true)
             {
-                conditions.Add($"[System.AreaPath] UNDER '{request.AreaPath}'");
+                foreach (var areaPath in request.AreaPaths.Where(a => !string.IsNullOrWhiteSpace(a)))
+                {
+                    areaConditions.Add($"[System.AreaPath] UNDER '{areaPath.Trim()}'");
+                }
+            }
+            else if (!string.IsNullOrEmpty(request.AreaPath)) // 後方互換性
+            {
+                areaConditions.Add($"[System.AreaPath] UNDER '{request.AreaPath}'");
             }
             
-            // イテレーションパス条件
-            if (!string.IsNullOrEmpty(request.IterationPath))
+            if (areaConditions.Any())
             {
-                conditions.Add($"[System.IterationPath] UNDER '{request.IterationPath}'");
+                conditions.Add($"({string.Join(" OR ", areaConditions)})");
+            }
+            
+            // イテレーションパス条件（複数対応）
+            var iterationConditions = new List<string>();
+            if (request.IterationPaths?.Any() == true)
+            {
+                foreach (var iterationPath in request.IterationPaths.Where(i => !string.IsNullOrWhiteSpace(i)))
+                {
+                    iterationConditions.Add($"[System.IterationPath] UNDER '{iterationPath.Trim()}'");
+                }
+            }
+            else if (!string.IsNullOrEmpty(request.IterationPath)) // 後方互換性
+            {
+                iterationConditions.Add($"[System.IterationPath] UNDER '{request.IterationPath}'");
+            }
+            
+            if (iterationConditions.Any())
+            {
+                conditions.Add($"({string.Join(" OR ", iterationConditions)})");
             }
             
             var whereClause = string.Join(" AND ", conditions);
             
             return $@"
                 SELECT [System.Id], [System.Title], [System.State], [System.WorkItemType], 
+                       [System.TeamProject], [System.AreaPath], [System.IterationPath],
                        [System.AssignedTo], [System.CreatedDate], [System.ChangedDate]
                 FROM WorkItems 
                 WHERE {whereClause}
@@ -202,48 +289,21 @@ namespace GadgetTools.Services
         {
             try
             {
-                // Try multiple possible endpoints for comments/discussions
-                var endpoints = new[]
+                var allComments = new List<WorkItemComment>();
+                
+                // Try to get discussions (newer API for modern Azure DevOps)
+                var discussionComments = await GetDiscussionCommentsAsync(workItemId, project);
+                allComments.AddRange(discussionComments);
+                
+                // Try to get traditional comments if discussions didn't work
+                if (allComments.Count == 0)
                 {
-                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/comments?api-version=7.0",
-                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/updates?api-version=7.0",
-                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/comments?api-version=7.0"
-                };
-
-                foreach (var endpoint in endpoints)
-                {
-                    try
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Trying Comments API URL: {endpoint}");
-                        
-                        var response = await _httpClient.GetAsync(endpoint);
-                        System.Diagnostics.Debug.WriteLine($"Comments API Response Status: {response.StatusCode}");
-                        
-                        if (response.IsSuccessStatusCode)
-                        {
-                            var result = await response.Content.ReadAsStringAsync();
-                            System.Diagnostics.Debug.WriteLine($"Comments API Raw Response: {result.Substring(0, Math.Min(500, result.Length))}...");
-                            
-                            var comments = await ParseCommentsFromResponse(result, endpoint.Contains("updates"));
-                            if (comments.Count > 0)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"Successfully got {comments.Count} comments from {endpoint}");
-                                return comments;
-                            }
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Failed with status: {response.StatusCode}, trying next endpoint");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Endpoint {endpoint} failed: {ex.Message}");
-                        continue;
-                    }
+                    var traditionalComments = await GetTraditionalCommentsAsync(workItemId, project);
+                    allComments.AddRange(traditionalComments);
                 }
                 
-                return new List<WorkItemComment>();
+                System.Diagnostics.Debug.WriteLine($"Total comments retrieved: {allComments.Count}");
+                return allComments;
             }
             catch (Exception ex)
             {
@@ -253,7 +313,242 @@ namespace GadgetTools.Services
             }
         }
 
-        private async Task<List<WorkItemComment>> ParseCommentsFromResponse(string result, bool isUpdatesEndpoint)
+        private async Task<List<WorkItemComment>> GetDiscussionCommentsAsync(int workItemId, string project)
+        {
+            try
+            {
+                // Try the discussions API endpoints - Azure DevOps uses different API versions and endpoints
+                var discussionEndpoints = new[]
+                {
+                    // Latest discussions API
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/discussions?api-version=7.2-preview.1",
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/discussions?api-version=7.1-preview.1",
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/discussions?api-version=7.0-preview.1",
+                    
+                    // Alternative endpoints without project context
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/discussions?api-version=7.2-preview.1",
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/discussions?api-version=7.1-preview.1",
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/discussions?api-version=7.0-preview.1",
+                    
+                    // Try different discussion-related endpoints
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/discussion?api-version=7.1-preview.1",
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/discussion?api-version=7.1-preview.1"
+                };
+
+                foreach (var endpoint in discussionEndpoints)
+                {
+                    try
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Trying Discussion API URL: {endpoint}");
+                        
+                        var response = await _httpClient.GetAsync(endpoint);
+                        System.Diagnostics.Debug.WriteLine($"Discussion API Response Status: {response.StatusCode}");
+                        
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var result = await response.Content.ReadAsStringAsync();
+                            System.Diagnostics.Debug.WriteLine($"Discussion API Raw Response Length: {result.Length}");
+                            System.Diagnostics.Debug.WriteLine($"Discussion API Raw Response: {result.Substring(0, Math.Min(1000, result.Length))}...");
+                            
+                            var comments = ParseDiscussionResponse(result);
+                            if (comments.Count > 0)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Successfully got {comments.Count} discussion comments from {endpoint}");
+                                return comments;
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Discussion API returned successful response but no comments parsed from {endpoint}");
+                            }
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Discussion API failed with status: {response.StatusCode}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Discussion endpoint {endpoint} failed: {ex.Message}");
+                        continue;
+                    }
+                }
+                
+                return new List<WorkItemComment>();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to get discussion comments: {ex.Message}");
+                return new List<WorkItemComment>();
+            }
+        }
+
+        private async Task<List<WorkItemComment>> GetTraditionalCommentsAsync(int workItemId, string project)
+        {
+            try
+            {
+                // Try traditional comment endpoints with various API versions and formats
+                var endpoints = new[]
+                {
+                    // Comments API endpoints
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/comments?api-version=7.2",
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/comments?api-version=7.1",
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/comments?api-version=7.0",
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/comments?api-version=7.2",
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/comments?api-version=7.1",
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/comments?api-version=7.0",
+                    
+                    // Updates API - often contains comment history
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/updates?api-version=7.2",
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/updates?api-version=7.1",
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/updates?api-version=7.0",
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/updates?api-version=7.2",
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/updates?api-version=7.1",
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/updates?api-version=7.0",
+                    
+                    // Revisions API - sometimes contains comments
+                    $"{_config.BaseUrl}/{project}/_apis/wit/workItems/{workItemId}/revisions?api-version=7.0",
+                    $"{_config.BaseUrl}/_apis/wit/workItems/{workItemId}/revisions?api-version=7.0"
+                };
+
+                foreach (var endpoint in endpoints)
+                {
+                    try
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Trying Traditional Comments API URL: {endpoint}");
+                        
+                        var response = await _httpClient.GetAsync(endpoint);
+                        System.Diagnostics.Debug.WriteLine($"Traditional Comments API Response Status: {response.StatusCode}");
+                        
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var result = await response.Content.ReadAsStringAsync();
+                            System.Diagnostics.Debug.WriteLine($"Traditional Comments API Raw Response Length: {result.Length}");
+                            System.Diagnostics.Debug.WriteLine($"Traditional Comments API Raw Response: {result.Substring(0, Math.Min(1000, result.Length))}...");
+                            
+                            var comments = ParseCommentsFromResponse(result, endpoint.Contains("updates"), endpoint.Contains("revisions"));
+                            if (comments.Count > 0)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Successfully got {comments.Count} traditional comments from {endpoint}");
+                                return comments;
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Traditional API returned successful response but no comments parsed from {endpoint}");
+                            }
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Traditional API failed with status: {response.StatusCode}, trying next endpoint");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Traditional endpoint {endpoint} failed: {ex.Message}");
+                        continue;
+                    }
+                }
+                
+                return new List<WorkItemComment>();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to get traditional comments: {ex.Message}");
+                return new List<WorkItemComment>();
+            }
+        }
+
+        private List<WorkItemComment> ParseDiscussionResponse(string result)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("Parsing discussion response");
+                dynamic dynamicResponse = JsonConvert.DeserializeObject(result)!;
+                var comments = new List<WorkItemComment>();
+                
+                if (dynamicResponse?.value != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Found {((System.Collections.IEnumerable)dynamicResponse.value).Cast<object>().Count()} discussion entries");
+                    
+                    foreach (var discussion in dynamicResponse.value)
+                    {
+                        try
+                        {
+                            // Parse discussion thread
+                            if (discussion.comments != null)
+                            {
+                                foreach (var comment in discussion.comments)
+                                {
+                                    try
+                                    {
+                                        var discussionComment = new WorkItemComment
+                                        {
+                                            Id = comment.id ?? 0,
+                                            Text = comment.content?.ToString() ?? "",
+                                            CreatedDate = comment.createdDate ?? DateTime.Now,
+                                            ModifiedDate = comment.lastUpdatedDate ?? comment.createdDate ?? DateTime.Now,
+                                            CreatedBy = new AssignedPerson
+                                            {
+                                                DisplayName = comment.createdBy?.displayName?.ToString() ?? "Unknown",
+                                                UniqueName = comment.createdBy?.uniqueName?.ToString() ?? "",
+                                                ImageUrl = comment.createdBy?.imageUrl?.ToString() ?? ""
+                                            }
+                                        };
+                                        
+                                        if (!string.IsNullOrEmpty(discussionComment.Text))
+                                        {
+                                            comments.Add(discussionComment);
+                                            System.Diagnostics.Debug.WriteLine($"Added discussion comment: {discussionComment.Text.Substring(0, Math.Min(50, discussionComment.Text.Length))}...");
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"Failed to parse individual discussion comment: {ex.Message}");
+                                    }
+                                }
+                            }
+                            else if (discussion.content != null)
+                            {
+                                // Single discussion entry without nested comments
+                                var discussionComment = new WorkItemComment
+                                {
+                                    Id = discussion.id ?? 0,
+                                    Text = discussion.content.ToString(),
+                                    CreatedDate = discussion.createdDate ?? DateTime.Now,
+                                    ModifiedDate = discussion.lastUpdatedDate ?? discussion.createdDate ?? DateTime.Now,
+                                    CreatedBy = new AssignedPerson
+                                    {
+                                        DisplayName = discussion.createdBy?.displayName?.ToString() ?? "Unknown",
+                                        UniqueName = discussion.createdBy?.uniqueName?.ToString() ?? "",
+                                        ImageUrl = discussion.createdBy?.imageUrl?.ToString() ?? ""
+                                    }
+                                };
+                                
+                                if (!string.IsNullOrEmpty(discussionComment.Text))
+                                {
+                                    comments.Add(discussionComment);
+                                    System.Diagnostics.Debug.WriteLine($"Added single discussion: {discussionComment.Text.Substring(0, Math.Min(50, discussionComment.Text.Length))}...");
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to parse discussion entry: {ex.Message}");
+                        }
+                    }
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Successfully parsed {comments.Count} discussion comments");
+                return comments;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to parse discussion response: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return new List<WorkItemComment>();
+            }
+        }
+
+        private List<WorkItemComment> ParseCommentsFromResponse(string result, bool isUpdatesEndpoint, bool isRevisionsEndpoint = false)
         {
             try
             {
@@ -265,40 +560,77 @@ namespace GadgetTools.Services
                 
                 if (dynamicResponse != null)
                 {
-                    if (isUpdatesEndpoint)
+                    if (isUpdatesEndpoint || isRevisionsEndpoint)
                     {
-                        // For updates endpoint, look for comments in the updates
+                        // For updates/revisions endpoint, look for comments in the updates/revisions
                         if (dynamicResponse.value != null)
                         {
-                            System.Diagnostics.Debug.WriteLine("Processing updates endpoint response");
-                            foreach (var update in dynamicResponse.value)
+                            System.Diagnostics.Debug.WriteLine($"Processing {(isUpdatesEndpoint ? "updates" : "revisions")} endpoint response");
+                            foreach (var item in dynamicResponse.value)
                             {
                                 try
                                 {
-                                    // Look for comment-like text in updates
-                                    if (update.fields != null && update.fields["System.History"] != null)
+                                    // Look for comment-like text in various fields
+                                    string historyText = null;
+                                    DateTime? itemDate = null;
+                                    string authorName = "Unknown";
+                                    
+                                    if (item.fields != null && item.fields["System.History"] != null)
                                     {
-                                        var historyText = update.fields["System.History"]?.newValue?.ToString();
-                                        if (!string.IsNullOrEmpty(historyText))
+                                        historyText = item.fields["System.History"]?.newValue?.ToString();
+                                        itemDate = item.revisedDate ?? item.createdDate;
+                                        authorName = item.revisedBy?.displayName?.ToString() ?? item.createdBy?.displayName?.ToString() ?? "Unknown";
+                                    }
+                                    else if (item.fields != null)
+                                    {
+                                        // Try to find any text field that might contain comments
+                                        foreach (var field in item.fields)
                                         {
-                                            var comment = new WorkItemComment
+                                            if (field.Value?.newValue != null)
                                             {
-                                                Id = update.id ?? 0,
-                                                Text = historyText,
-                                                CreatedDate = update.revisedDate ?? DateTime.Now,
-                                                ModifiedDate = update.revisedDate ?? DateTime.Now,
-                                                CreatedBy = new AssignedPerson
+                                                var fieldValue = field.Value.newValue.ToString();
+                                                if (!string.IsNullOrEmpty(fieldValue) && fieldValue.Length > 10)
                                                 {
-                                                    DisplayName = update.revisedBy?.displayName?.ToString() ?? "Unknown"
+                                                    historyText = fieldValue;
+                                                    itemDate = item.revisedDate ?? item.createdDate;
+                                                    authorName = item.revisedBy?.displayName?.ToString() ?? item.createdBy?.displayName?.ToString() ?? "Unknown";
+                                                    break;
                                                 }
-                                            };
-                                            comments.Add(comment);
+                                            }
                                         }
+                                    }
+                                    
+                                    // For revisions, also check direct field values
+                                    if (isRevisionsEndpoint && string.IsNullOrEmpty(historyText) && item.fields != null)
+                                    {
+                                        if (item.fields["System.Description"] != null)
+                                        {
+                                            historyText = item.fields["System.Description"]?.ToString();
+                                            itemDate = item.fields["System.ChangedDate"] ?? DateTime.Now;
+                                            authorName = item.fields["System.ChangedBy"]?.displayName?.ToString() ?? "Unknown";
+                                        }
+                                    }
+                                    
+                                    if (!string.IsNullOrEmpty(historyText))
+                                    {
+                                        var comment = new WorkItemComment
+                                        {
+                                            Id = item.id ?? item.rev ?? 0,
+                                            Text = historyText,
+                                            CreatedDate = itemDate ?? DateTime.Now,
+                                            ModifiedDate = itemDate ?? DateTime.Now,
+                                            CreatedBy = new AssignedPerson
+                                            {
+                                                DisplayName = authorName
+                                            }
+                                        };
+                                        comments.Add(comment);
+                                        System.Diagnostics.Debug.WriteLine($"Added {(isUpdatesEndpoint ? "update" : "revision")} comment: {historyText.Substring(0, Math.Min(50, historyText.Length))}...");
                                     }
                                 }
                                 catch (Exception ex)
                                 {
-                                    System.Diagnostics.Debug.WriteLine($"Failed to parse update as comment: {ex.Message}");
+                                    System.Diagnostics.Debug.WriteLine($"Failed to parse {(isUpdatesEndpoint ? "update" : "revision")} as comment: {ex.Message}");
                                 }
                             }
                         }

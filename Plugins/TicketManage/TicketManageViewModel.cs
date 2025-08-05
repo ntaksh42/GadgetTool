@@ -20,10 +20,13 @@ namespace GadgetTools.Plugins.TicketManage
         #region Private Fields
         private readonly AzureDevOpsConfigService _configService;
         private string _project = string.Empty;
+        private List<string> _projects = new List<string>();
         private string _workItemType = "All";
         private string _state = "All";
         private string _iteration = "";
         private string _area = "";
+        private List<string> _iterations = new List<string>();
+        private List<string> _areas = new List<string>();
         private int _maxResults = 50;
         private bool _detailedMarkdown = true;
         private int _highlightDays = 7;
@@ -68,28 +71,173 @@ namespace GadgetTools.Plugins.TicketManage
             }
         }
 
+        public List<string> Projects
+        {
+            get => _projects;
+            set 
+            {
+                if (SetProperty(ref _projects, value))
+                {
+                    OnPropertyChanged(nameof(ProjectsPreview));
+                    OnPropertyChanged(nameof(SearchCriteriaSummary));
+                }
+            }
+        }
+        
+        public string ProjectsPreview
+        {
+            get
+            {
+                if (!Projects.Any()) return "No projects selected";
+                if (Projects.Count == 1) return Projects.First();
+                return $"{Projects.Count} projects: {string.Join(", ", Projects.Take(3))}{(Projects.Count > 3 ? "..." : "")}";
+            }
+        }
+
         public string WorkItemType
         {
             get => _workItemType;
-            set => SetProperty(ref _workItemType, value);
+            set 
+            {
+                if (SetProperty(ref _workItemType, value))
+                {
+                    OnPropertyChanged(nameof(SearchCriteriaSummary));
+                }
+            }
         }
 
         public string State
         {
             get => _state;
-            set => SetProperty(ref _state, value);
+            set 
+            {
+                if (SetProperty(ref _state, value))
+                {
+                    OnPropertyChanged(nameof(SearchCriteriaSummary));
+                }
+            }
         }
 
         public string Iteration
         {
             get => _iteration;
-            set => SetProperty(ref _iteration, value);
+            set 
+            {
+                if (SetProperty(ref _iteration, value))
+                {
+                    OnPropertyChanged(nameof(SearchCriteriaSummary));
+                }
+            }
+        }
+
+        public List<string> Iterations
+        {
+            get => _iterations;
+            set 
+            {
+                if (SetProperty(ref _iterations, value))
+                {
+                    OnPropertyChanged(nameof(IterationsPreview));
+                    OnPropertyChanged(nameof(SearchCriteriaSummary));
+                }
+            }
+        }
+        
+        public string IterationsPreview
+        {
+            get
+            {
+                if (!Iterations.Any()) return "All iterations";
+                if (Iterations.Count == 1) return Iterations.First();
+                return $"{Iterations.Count} iterations: {string.Join(", ", Iterations.Take(2))}{(Iterations.Count > 2 ? "..." : "")}";
+            }
         }
 
         public string Area
         {
             get => _area;
-            set => SetProperty(ref _area, value);
+            set 
+            {
+                if (SetProperty(ref _area, value))
+                {
+                    OnPropertyChanged(nameof(SearchCriteriaSummary));
+                }
+            }
+        }
+
+        public List<string> Areas
+        {
+            get => _areas;
+            set 
+            {
+                if (SetProperty(ref _areas, value))
+                {
+                    OnPropertyChanged(nameof(AreasPreview));
+                    OnPropertyChanged(nameof(SearchCriteriaSummary));
+                }
+            }
+        }
+        
+        public string AreasPreview
+        {
+            get
+            {
+                if (!Areas.Any()) return "All areas";
+                if (Areas.Count == 1) return Areas.First();
+                return $"{Areas.Count} areas: {string.Join(", ", Areas.Take(2))}{(Areas.Count > 2 ? "..." : "")}";
+            }
+        }
+        
+        public string SearchCriteriaSummary
+        {
+            get
+            {
+                var criteria = new List<string>();
+                
+                if (Projects.Any())
+                {
+                    criteria.Add($"Projects: {string.Join(", ", Projects.Take(2))}{(Projects.Count > 2 ? $" +{Projects.Count - 2} more" : "")}");
+                }
+                else if (!string.IsNullOrWhiteSpace(Project))
+                {
+                    criteria.Add($"Project: {Project}");
+                }
+                
+                if (!string.IsNullOrWhiteSpace(WorkItemType) && WorkItemType != "All")
+                {
+                    criteria.Add($"Type: {WorkItemType}");
+                }
+                
+                if (!string.IsNullOrWhiteSpace(State) && State != "All")
+                {
+                    criteria.Add($"State: {State}");
+                }
+                
+                if (Iterations.Any())
+                {
+                    criteria.Add($"Iterations: {string.Join(", ", Iterations.Take(2))}{(Iterations.Count > 2 ? $" +{Iterations.Count - 2} more" : "")}");
+                }
+                else if (!string.IsNullOrWhiteSpace(Iteration))
+                {
+                    criteria.Add($"Iteration: {Iteration}");
+                }
+                
+                if (Areas.Any())
+                {
+                    criteria.Add($"Areas: {string.Join(", ", Areas.Take(2))}{(Areas.Count > 2 ? $" +{Areas.Count - 2} more" : "")}");
+                }
+                else if (!string.IsNullOrWhiteSpace(Area))
+                {
+                    criteria.Add($"Area: {Area}");
+                }
+                
+                if (!criteria.Any())
+                {
+                    return "No specific criteria - searching all items";
+                }
+                
+                return string.Join(" | ", criteria);
+            }
         }
 
         public int MaxResults
@@ -516,7 +664,7 @@ namespace GadgetTools.Plugins.TicketManage
                     var htmlContent = await Task.Run(() => 
                     {
                         if (token.IsCancellationRequested) return null;
-                        return TicketHtmlService.GenerateWorkItemHtml(workItem, comments);
+                        return TicketHtmlService.GenerateWorkItemHtml(workItem, comments, Organization);
                     }, token);
                     
                     // キャンセルチェック
@@ -673,14 +821,48 @@ namespace GadgetTools.Plugins.TicketManage
             var iteration = string.IsNullOrWhiteSpace(Iteration) ? "" : Iteration.Trim();
             var area = string.IsNullOrWhiteSpace(Area) ? "" : Area.Trim();
 
+            // 複数選択をサポート
+            var projects = new List<string>();
+            if (Projects.Any())
+            {
+                projects.AddRange(Projects.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()));
+            }
+            else if (!string.IsNullOrWhiteSpace(Project))
+            {
+                projects.Add(Project.Trim());
+            }
+
+            var iterations = new List<string>();
+            if (Iterations.Any())
+            {
+                iterations.AddRange(Iterations.Where(i => !string.IsNullOrWhiteSpace(i)).Select(i => i.Trim()));
+            }
+            else if (!string.IsNullOrWhiteSpace(Iteration))
+            {
+                iterations.Add(Iteration.Trim());
+            }
+
+            var areas = new List<string>();
+            if (Areas.Any())
+            {
+                areas.AddRange(Areas.Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim()));
+            }
+            else if (!string.IsNullOrWhiteSpace(Area))
+            {
+                areas.Add(Area.Trim());
+            }
+
             return new WorkItemQueryRequest
             {
                 Organization = config.Organization,
-                Project = config.Project,
+                Project = config.Project, // 後方互換性のため
+                Projects = projects,
                 WorkItemType = workItemType,
                 State = state,
-                IterationPath = iteration,
-                AreaPath = area,
+                IterationPath = iteration, // 後方互換性のため
+                AreaPath = area, // 後方互換性のため
+                IterationPaths = iterations,
+                AreaPaths = areas,
                 MaxResults = Math.Min(MaxResults, 200) // 安全のため最大200に制限
             };
         }
@@ -695,14 +877,23 @@ namespace GadgetTools.Plugins.TicketManage
                     var azureSettings = settings.AzureDevOps;
 
                     Project = azureSettings.Project;
+                    Projects = azureSettings.Projects ?? new List<string>();
                     MaxResults = azureSettings.MaxResults;
                     WorkItemType = azureSettings.WorkItemType;
                     State = azureSettings.State;
                     Iteration = azureSettings.Iteration ?? "";
+                    Iterations = azureSettings.Iterations ?? new List<string>();
                     Area = azureSettings.Area ?? "";
+                    Areas = azureSettings.Areas ?? new List<string>();
                     DetailedMarkdown = azureSettings.DetailedMarkdown;
                     HighlightDays = azureSettings.HighlightDays;
                     EnableHighlight = azureSettings.EnableHighlight;
+                    
+                    // プレビュー更新通知
+                    OnPropertyChanged(nameof(ProjectsPreview));
+                    OnPropertyChanged(nameof(IterationsPreview));
+                    OnPropertyChanged(nameof(AreasPreview));
+                    OnPropertyChanged(nameof(SearchCriteriaSummary));
                 }
                 
                 // 共通設定をロード
@@ -762,10 +953,13 @@ namespace GadgetTools.Plugins.TicketManage
             }
             
             settings.AzureDevOps.Project = Project.Trim();
+            settings.AzureDevOps.Projects = Projects;
             settings.AzureDevOps.WorkItemType = WorkItemType;
             settings.AzureDevOps.State = State;
             settings.AzureDevOps.Iteration = Iteration;
+            settings.AzureDevOps.Iterations = Iterations;
             settings.AzureDevOps.Area = Area;
+            settings.AzureDevOps.Areas = Areas;
             settings.AzureDevOps.MaxResults = MaxResults;
             settings.AzureDevOps.DetailedMarkdown = DetailedMarkdown;
             settings.AzureDevOps.HighlightDays = HighlightDays;

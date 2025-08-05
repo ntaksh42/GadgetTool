@@ -20,12 +20,15 @@ namespace GadgetTools.Services
         public class AzureDevOpsSettings
         {
             public string Organization { get; set; } = "";
-            public string Project { get; set; } = "";
+            public List<string> Projects { get; set; } = new List<string>();
+            public string Project { get; set; } = ""; // 後方互換性のため保持
             public string EncryptedPersonalAccessToken { get; set; } = "";
             public string WorkItemType { get; set; } = "All";
             public string State { get; set; } = "All";
-            public string Iteration { get; set; } = "All";
-            public string Area { get; set; } = "All";
+            public List<string> Iterations { get; set; } = new List<string>();
+            public List<string> Areas { get; set; } = new List<string>();
+            public string Iteration { get; set; } = "All"; // 後方互換性のため保持
+            public string Area { get; set; } = "All"; // 後方互換性のため保持
             public int MaxResults { get; set; } = 50;
             public bool DetailedMarkdown { get; set; } = true;
             public int HighlightDays { get; set; } = 7;

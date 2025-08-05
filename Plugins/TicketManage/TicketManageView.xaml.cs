@@ -312,7 +312,22 @@ namespace GadgetTools.Plugins.TicketManage
             {
                 try
                 {
-                    var url = $"https://dev.azure.com/{viewModel.Organization}/{viewModel.Project}/_workitems/edit/{workItem.Id}";
+                    // Use TeamProject from WorkItem if available, fallback to viewModel.Project
+                    var projectName = !string.IsNullOrEmpty(workItem.Fields.TeamProject) 
+                        ? workItem.Fields.TeamProject 
+                        : viewModel.Project;
+                    
+                    if (string.IsNullOrEmpty(projectName))
+                    {
+                        System.Windows.MessageBox.Show("Cannot determine project name for this work item.", "Error", 
+                            System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                        return;
+                    }
+                    
+                    var url = $"https://dev.azure.com/{viewModel.Organization}/{projectName}/_workitems/edit/{workItem.Id}";
+                    
+                    System.Diagnostics.Debug.WriteLine($"Opening work item URL: {url}");
+                    
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = url,
@@ -321,7 +336,7 @@ namespace GadgetTools.Plugins.TicketManage
                 }
                 catch (System.Exception ex)
                 {
-                    System.Windows.MessageBox.Show($"Failed to open work item: {ex.Message}", "Error", 
+                    System.Windows.MessageBox.Show($"Failed to open work item: {ex.Message}\n\nWork Item ID: {workItem.Id}\nProject: {workItem.Fields.TeamProject}", "Error", 
                         System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                 }
             }
@@ -874,6 +889,64 @@ namespace GadgetTools.Plugins.TicketManage
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error cleaning up DataGrid settings watcher: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Multiple Selection Handlers
+
+        private void SelectProjects_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null) return;
+
+            var dialog = new MultipleSelectionDialog
+            {
+                Title = "Select Projects",
+                ItemsSource = new List<string>(), // これは後で実際のプロジェクト一覧を取得する実装に変更
+                SelectedItems = _viewModel.Projects.ToList(),
+                Owner = Window.GetWindow(this)
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _viewModel.Projects = dialog.SelectedItems;
+            }
+        }
+
+        private void SelectIterations_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null) return;
+
+            var dialog = new MultipleSelectionDialog
+            {
+                Title = "Select Iterations",
+                ItemsSource = new List<string>(), // これは後で実際のIteration一覧を取得する実装に変更
+                SelectedItems = _viewModel.Iterations.ToList(),
+                Owner = Window.GetWindow(this)
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _viewModel.Iterations = dialog.SelectedItems;
+            }
+        }
+
+        private void SelectAreas_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null) return;
+
+            var dialog = new MultipleSelectionDialog
+            {
+                Title = "Select Areas",
+                ItemsSource = new List<string>(), // これは後で実際のArea一覧を取得する実装に変更
+                SelectedItems = _viewModel.Areas.ToList(),
+                Owner = Window.GetWindow(this)
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _viewModel.Areas = dialog.SelectedItems;
             }
         }
 
