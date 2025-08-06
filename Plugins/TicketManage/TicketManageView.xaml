@@ -363,6 +363,8 @@
                     <RadioButton Content="Detailed Markdown" IsChecked="{Binding DetailedMarkdown}" Margin="0,0,20,0"/>
                     <RadioButton Content="Table Only" IsChecked="{Binding DetailedMarkdown, Converter={StaticResource BooleanInverseConverter}}" Margin="0,0,20,0"/>
                         <Button Content="Save to File..." Width="100" Command="{Binding SaveResultCommand}"/>
+                        <Button Content="📊 Area Chart" Width="100" Margin="10,0,0,0" Command="{Binding ShowAreaChartCommand}" ToolTip="エリアごとの集計をチャートで表示"/>
+                        <Button Content="🧪 Sample Data" Width="100" Margin="10,0,0,0" Command="{Binding LoadSampleDataCommand}" ToolTip="テスト用のサンプルデータを読み込み"/>
                     </StackPanel>
                     </Grid>
                 </Border>
