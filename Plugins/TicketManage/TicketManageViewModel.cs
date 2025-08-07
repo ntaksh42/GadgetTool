@@ -38,6 +38,7 @@ namespace GadgetTools.Plugins.TicketManage
         private string _htmlPreview = string.Empty;
         private WorkItem? _selectedWorkItem;
         private bool _isConnected = false;
+        private string _statusMessage = string.Empty;
 
         // Enhanced Search Fields
         private string _titleSearch = string.Empty;
@@ -345,6 +346,12 @@ namespace GadgetTools.Plugins.TicketManage
             set => SetProperty(ref _isConnected, value);
         }
 
+        public new string StatusMessage
+        {
+            get => _statusMessage;
+            set => SetProperty(ref _statusMessage, value);
+        }
+
         public ICollectionView WorkItemsView => _workItemsViewSource.View;
 
         #region Enhanced Search Properties
@@ -445,6 +452,7 @@ namespace GadgetTools.Plugins.TicketManage
         public ICommand AddToWatchlistCommand { get; }
         public ICommand ShowAreaChartCommand { get; }
         public ICommand LoadSampleDataCommand { get; }
+        public ICommand ClearDrillDownCommand { get; }
         #endregion
 
         public TicketManageViewModel()
@@ -481,6 +489,7 @@ namespace GadgetTools.Plugins.TicketManage
             AddToWatchlistCommand = new RelayCommand(AddToWatchlist, CanExecuteSelectedItemCommand);
             ShowAreaChartCommand = new RelayCommand(ShowAreaChart, CanShowAreaChart);
             LoadSampleDataCommand = new RelayCommand(LoadSampleData);
+            ClearDrillDownCommand = new RelayCommand(ExecuteClearDrillDown, CanClearDrillDown);
             
             // Initialize collections
             SavedQueries = new ObservableCollection<SavedQuery>();
@@ -1893,6 +1902,10 @@ namespace GadgetTools.Plugins.TicketManage
                 
                 var chartWindow = new AreaChartWindow(filteredWorkItems);
                 chartWindow.Title = $"ワークアイテム集計チャート ({filteredWorkItems.Count} 件)";
+                
+                // ドリルダウンイベントを処理
+                chartWindow.ChartElementClicked += OnChartElementClicked;
+                
                 chartWindow.Show();
             }
             catch (Exception ex)
@@ -1903,6 +1916,33 @@ namespace GadgetTools.Plugins.TicketManage
                     "エラー",
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private async void OnChartElementClicked(object sender, ChartDrillDownEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"OnChartElementClicked triggered: Label={e.Label}, WorkItems={e.WorkItems.Count}");
+                
+                // チャートウィンドウを閉じる（オプション）
+                if (sender is AreaChartWindow chartWindow)
+                {
+                    System.Diagnostics.Debug.WriteLine("Closing chart window");
+                    chartWindow.Close();
+                }
+
+                // ドリルダウンフィルタを適用
+                System.Diagnostics.Debug.WriteLine("Applying drill-down filter");
+                await ApplyChartDrillDown(e.Label, e.CategoryType, e.WorkItems);
+                
+                // メインウィンドウをアクティブにする
+                System.Windows.Application.Current.MainWindow?.Activate();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error handling chart drill-down: {ex.Message}");
+                SetError($"ドリルダウンの処理中にエラーが発生しました: {ex.Message}");
             }
         }
 
@@ -2069,6 +2109,124 @@ namespace GadgetTools.Plugins.TicketManage
             };
 
             return people[random.Next(people.Length)];
+        }
+
+        #endregion
+
+        #region Chart Drill-down functionality
+
+        /// <summary>
+        /// Apply drill-down filter from chart selection
+        /// </summary>
+        public async Task ApplyChartDrillDown(string categoryLabel, CategoryType categoryType, List<GadgetTools.Shared.Models.WorkItem> workItems)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"ApplyChartDrillDown started: Label={categoryLabel}, Type={categoryType}, WorkItems={workItems.Count}");
+                
+                // Update the work items collection with the filtered data
+                System.Diagnostics.Debug.WriteLine($"Clearing _allWorkItems (currently has {_allWorkItems.Count} items)");
+                _allWorkItems.Clear();
+                
+                System.Diagnostics.Debug.WriteLine($"Clearing WorkItems ObservableCollection (currently has {WorkItems.Count} items)");
+                WorkItems.Clear();
+                
+                System.Diagnostics.Debug.WriteLine($"Adding {workItems.Count} filtered work items to both collections");
+                foreach (var item in workItems)
+                {
+                    _allWorkItems.Add(item);
+                    WorkItems.Add(item);
+                }
+                System.Diagnostics.Debug.WriteLine($"_allWorkItems now has {_allWorkItems.Count} items, WorkItems has {WorkItems.Count} items");
+
+                // Clear any existing text filter
+                System.Diagnostics.Debug.WriteLine($"Clearing FilterText (was: '{FilterText}')");
+                FilterText = "";
+
+                // Update the view
+                System.Diagnostics.Debug.WriteLine("Refreshing view source");
+                _workItemsViewSource.View?.Refresh();
+
+                // Update status message to show drill-down context
+                var categoryTypeName = GetCategoryTypeDisplayName(categoryType);
+                var statusMsg = $"ドリルダウン: {categoryTypeName} '{categoryLabel}' ({workItems.Count}件)";
+                System.Diagnostics.Debug.WriteLine($"Setting StatusMessage to: {statusMsg}");
+                StatusMessage = statusMsg;
+
+                // Generate preview for filtered data
+                System.Diagnostics.Debug.WriteLine("Generating markdown preview");
+                GenerateMarkdownPreview();
+
+                System.Diagnostics.Debug.WriteLine("Triggering property change notifications");
+                OnPropertyChanged(nameof(WorkItemsView));
+                OnPropertyChanged(nameof(SelectedWorkItem));
+                OnPropertyChanged(nameof(StatusMessage));
+                
+                // Force CommandManager to re-evaluate can execute for all commands
+                System.Diagnostics.Debug.WriteLine("Forcing CommandManager re-evaluation");
+                CommandManager.InvalidateRequerySuggested();
+                
+                System.Diagnostics.Debug.WriteLine("ApplyChartDrillDown completed successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in ApplyChartDrillDown: {ex.Message}");
+                SetError($"ドリルダウンの適用に失敗しました: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Execute clear drill-down command (sync wrapper for async method)
+        /// </summary>
+        private async void ExecuteClearDrillDown()
+        {
+            await ClearDrillDown();
+        }
+
+        /// <summary>
+        /// Check if drill-down can be cleared (always true when there are work items)
+        /// </summary>
+        private bool CanClearDrillDown()
+        {
+            var canExecute = WorkItems.Count > 0;
+            System.Diagnostics.Debug.WriteLine($"CanClearDrillDown: {canExecute} (WorkItems.Count={WorkItems.Count})");
+            return canExecute;
+        }
+
+        private string GetCategoryTypeDisplayName(CategoryType categoryType)
+        {
+            return categoryType switch
+            {
+                CategoryType.Area => "エリア",
+                CategoryType.Feature => "機能",
+                CategoryType.Priority => "優先度",
+                CategoryType.WorkItemType => "種類",
+                CategoryType.State => "状態",
+                CategoryType.AssignedTo => "担当者",
+                _ => "分類"
+            };
+        }
+
+        /// <summary>
+        /// Clear drill-down filter and return to original view
+        /// </summary>
+        public async Task ClearDrillDown()
+        {
+            try
+            {
+                // Reload original data
+                IsLoading = true;
+                await QueryWorkItemsAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in ClearDrillDown: {ex.Message}");
+                SetError($"ドリルダウンのクリアに失敗しました: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
 
         #endregion

@@ -241,6 +241,10 @@ namespace GadgetTools.Core.Views
                     
                     Canvas.SetLeft(bar, x);
                     Canvas.SetTop(bar, y);
+                    
+                    // Add click handler for drill-down
+                    AddClickHandler(bar, dataPoint);
+                    
                     ChartCanvas.Children.Add(bar);
                     
                     // Add subtle hover effect
@@ -350,6 +354,10 @@ namespace GadgetTools.Core.Views
                     
                     Canvas.SetLeft(bar, x);
                     Canvas.SetTop(bar, y);
+                    
+                    // Add click handler for drill-down
+                    AddClickHandler(bar, dataPoint);
+                    
                     ChartCanvas.Children.Add(bar);
                     
                     // Add subtle hover effect
@@ -753,9 +761,19 @@ namespace GadgetTools.Core.Views
                 Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255))
             };
             
+            var clickHintBlock = new TextBlock
+            {
+                Text = "🖱️ クリックしてドリルダウン",
+                FontSize = 10,
+                FontStyle = FontStyles.Italic,
+                Margin = new Thickness(0, 4, 0, 0),
+                Foreground = new SolidColorBrush(Color.FromArgb(180, 173, 216, 255))
+            };
+            
             panel.Children.Add(titleBlock);
             panel.Children.Add(valueBlock);
             panel.Children.Add(percentageBlock);
+            panel.Children.Add(clickHintBlock);
             
             if (!string.IsNullOrEmpty(dataPoint.Description))
             {
@@ -776,5 +794,62 @@ namespace GadgetTools.Core.Views
         }
 
         #endregion
+
+        #region Drill-down functionality
+
+        /// <summary>
+        /// Event fired when user clicks on a chart element for drill-down
+        /// </summary>
+        public event EventHandler<ChartDrillDownEventArgs>? ChartElementClicked;
+
+        private void AddClickHandler(Rectangle bar, BarChartDataPoint dataPoint)
+        {
+            bar.Cursor = Cursors.Hand;
+            bar.MouseLeftButtonUp += (s, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine($"Chart bar clicked: {dataPoint.Label} ({dataPoint.Value} items)");
+                OnChartElementClicked(dataPoint);
+            };
+        }
+
+        private void OnChartElementClicked(BarChartDataPoint dataPoint)
+        {
+            var eventArgs = new ChartDrillDownEventArgs
+            {
+                Label = dataPoint.Label,
+                Value = dataPoint.Value,
+                CategoryType = _viewModel.SelectedCategoryType,
+                AggregationType = _viewModel.SelectedAggregationType,
+                IsTimeSeriesMode = _viewModel.IsTimeSeriesMode,
+                WorkItems = GetWorkItemsForDataPoint(dataPoint)
+            };
+
+            System.Diagnostics.Debug.WriteLine($"Firing ChartElementClicked event for {dataPoint.Label} with {eventArgs.WorkItems.Count} work items");
+            ChartElementClicked?.Invoke(this, eventArgs);
+        }
+
+        private List<GadgetTools.Shared.Models.WorkItem> GetWorkItemsForDataPoint(BarChartDataPoint dataPoint)
+        {
+            // Find the aggregation data that matches this data point
+            var aggregationData = _viewModel.Aggregations
+                .FirstOrDefault(a => a.CategoryName == dataPoint.Label);
+
+            return aggregationData?.WorkItems ?? new List<GadgetTools.Shared.Models.WorkItem>();
+        }
+
+        #endregion
+    }
+
+    /// <summary>
+    /// Event arguments for chart drill-down functionality
+    /// </summary>
+    public class ChartDrillDownEventArgs : EventArgs
+    {
+        public string Label { get; set; } = "";
+        public int Value { get; set; }
+        public CategoryType CategoryType { get; set; }
+        public AggregationType AggregationType { get; set; }
+        public bool IsTimeSeriesMode { get; set; }
+        public List<GadgetTools.Shared.Models.WorkItem> WorkItems { get; set; } = new List<GadgetTools.Shared.Models.WorkItem>();
     }
 }

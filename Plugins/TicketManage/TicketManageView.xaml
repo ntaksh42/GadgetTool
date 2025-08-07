@@ -244,6 +244,7 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="Filter:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <TextBox Grid.Column="1" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
@@ -259,7 +260,10 @@
                         <Button Grid.Column="5" Content="📊 Chart" Width="70" 
                                 Margin="5,0,0,0" Command="{Binding ShowAreaChartCommand}" 
                                 ToolTip="エリアごとの集計をチャートで表示"/>
-                        <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <Button Grid.Column="6" Content="🔄 Reset" Width="60" 
+                                Margin="5,0,0,0" Command="{Binding ClearDrillDownCommand}" 
+                                ToolTip="ドリルダウンフィルタをクリアして元のデータを表示"/>
+                        <StackPanel Grid.Column="7" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
                             <!-- エラー表示 -->
                             <Border Background="#FFEBEE" BorderBrush="#F44336" BorderThickness="1" 
                                     Padding="5" CornerRadius="3" Margin="0,0,10,0"
