@@ -32,10 +32,18 @@ namespace GadgetTools.Core.Views
 
         private void AreaChartWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // Initialize ComboBox selections
-            CategoryTypeComboBox.SelectedIndex = 0; // Feature
-            AggregationTypeComboBox.SelectedIndex = 0; // TotalCount
-            ChartTypeComboBox.SelectedIndex = 0; // Bar
+            // Initialize ComboBox data sources
+            CategoryTypeComboBox.ItemsSource = Enum.GetValues(typeof(CategoryType));
+            AggregationTypeComboBox.ItemsSource = Enum.GetValues(typeof(AggregationType));
+            ChartTypeComboBox.ItemsSource = Enum.GetValues(typeof(ChartType));
+            TimePeriodComboBox.ItemsSource = Enum.GetValues(typeof(TimePeriodType));
+            
+            // Set default selections
+            CategoryTypeComboBox.SelectedItem = CategoryType.Feature;
+            TimePeriodComboBox.SelectedItem = TimePeriodType.Monthly;
+            
+            // Update combo box items based on current mode
+            UpdateComboBoxItems();
             
             // Initial chart draw
             DrawChart();
@@ -52,6 +60,84 @@ namespace GadgetTools.Core.Views
                 e.PropertyName == nameof(AreaChartViewModel.ShowPriorityBreakdown))
             {
                 Dispatcher.BeginInvoke(new Action(DrawChart));
+            }
+            
+            if (e.PropertyName == nameof(AreaChartViewModel.IsTimeSeriesMode))
+            {
+                UpdateComboBoxItems();
+            }
+        }
+        
+        private void UpdateComboBoxItems()
+        {
+            if (_viewModel.IsTimeSeriesMode)
+            {
+                // Time series mode - show time series specific aggregations
+                var timeSeriesAggregations = new[]
+                {
+                    AggregationType.CreatedTrend,
+                    AggregationType.ResolvedTrend,
+                    AggregationType.CumulativeCreated,
+                    AggregationType.TotalCount,
+                    AggregationType.ActiveCount,
+                    AggregationType.ResolvedCount,
+                    AggregationType.ClosedCount
+                };
+                AggregationTypeComboBox.ItemsSource = timeSeriesAggregations;
+                
+                // Add Line chart for time series
+                var timeSeriesChartTypes = new[]
+                {
+                    ChartType.Line,
+                    ChartType.Bar,
+                    ChartType.HorizontalBar
+                };
+                ChartTypeComboBox.ItemsSource = timeSeriesChartTypes;
+                
+                // Set default to Line chart for time series
+                if (_viewModel.SelectedChartType != ChartType.Line)
+                {
+                    _viewModel.SelectedChartType = ChartType.Line;
+                }
+                
+                // Set default to CreatedTrend
+                if (!timeSeriesAggregations.Contains(_viewModel.SelectedAggregationType))
+                {
+                    _viewModel.SelectedAggregationType = AggregationType.CreatedTrend;
+                }
+            }
+            else
+            {
+                // Regular mode - show all aggregations except time series specific ones
+                var regularAggregations = Enum.GetValues(typeof(AggregationType))
+                    .Cast<AggregationType>()
+                    .Where(t => t != AggregationType.CreatedTrend && 
+                               t != AggregationType.ResolvedTrend && 
+                               t != AggregationType.UpdatedTrend &&
+                               t != AggregationType.CumulativeCreated &&
+                               t != AggregationType.BurndownChart)
+                    .ToArray();
+                AggregationTypeComboBox.ItemsSource = regularAggregations;
+                
+                // Regular chart types (no Line chart)
+                var regularChartTypes = new[]
+                {
+                    ChartType.Bar,
+                    ChartType.HorizontalBar
+                };
+                ChartTypeComboBox.ItemsSource = regularChartTypes;
+                
+                // Reset to Bar chart if Line was selected
+                if (_viewModel.SelectedChartType == ChartType.Line)
+                {
+                    _viewModel.SelectedChartType = ChartType.Bar;
+                }
+                
+                // Set default to TotalCount
+                if (!regularAggregations.Contains(_viewModel.SelectedAggregationType))
+                {
+                    _viewModel.SelectedAggregationType = AggregationType.TotalCount;
+                }
             }
         }
 

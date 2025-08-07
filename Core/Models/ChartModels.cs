@@ -324,7 +324,23 @@ namespace GadgetTools.Core.Models
         AveragePriority,   // 平均優先度
         HighPriorityCount, // 高優先度数
         MediumPriorityCount, // 中優先度数
-        LowPriorityCount   // 低優先度数
+        LowPriorityCount,   // 低優先度数
+        CreatedTrend,      // 作成日トレンド
+        ResolvedTrend,     // 解決日トレンド
+        UpdatedTrend,      // 更新日トレンド
+        CumulativeCreated, // 累積作成数
+        BurndownChart      // バーンダウン
+    }
+
+    /// <summary>
+    /// 時系列の期間タイプ
+    /// </summary>
+    public enum TimePeriodType
+    {
+        Daily,    // 日別
+        Weekly,   // 週別
+        Monthly,  // 月別
+        Quarterly // 四半期別
     }
 
     /// <summary>
@@ -341,12 +357,92 @@ namespace GadgetTools.Core.Models
     }
 
     /// <summary>
+    /// 時系列チャート用のデータポイント
+    /// </summary>
+    public class TimeSeriesDataPoint : ChartDataBase
+    {
+        private DateTime _date = DateTime.Today;
+        private int _value = 0;
+        private string _label = "";
+        private string _seriesName = "";
+        private string _color = "#4472C4";
+
+        public DateTime Date
+        {
+            get => _date;
+            set => SetProperty(ref _date, value);
+        }
+
+        public int Value
+        {
+            get => _value;
+            set => SetProperty(ref _value, value);
+        }
+
+        public string Label
+        {
+            get => _label;
+            set => SetProperty(ref _label, value);
+        }
+
+        public string SeriesName
+        {
+            get => _seriesName;
+            set => SetProperty(ref _seriesName, value);
+        }
+
+        public string Color
+        {
+            get => _color;
+            set => SetProperty(ref _color, value);
+        }
+
+        // 追加のメトリクス
+        public int CreatedCount { get; set; } = 0;
+        public int ResolvedCount { get; set; } = 0;
+        public int ClosedCount { get; set; } = 0;
+        public int ActiveCount { get; set; } = 0;
+        public double CumulativeTotal { get; set; } = 0;
+    }
+
+    /// <summary>
+    /// 時系列データの系列
+    /// </summary>
+    public class TimeSeriesCollection : ChartDataBase
+    {
+        private string _seriesName = "";
+        private string _color = "#4472C4";
+        private bool _isVisible = true;
+
+        public string SeriesName
+        {
+            get => _seriesName;
+            set => SetProperty(ref _seriesName, value);
+        }
+
+        public string Color
+        {
+            get => _color;
+            set => SetProperty(ref _color, value);
+        }
+
+        public bool IsVisible
+        {
+            get => _isVisible;
+            set => SetProperty(ref _isVisible, value);
+        }
+
+        public List<TimeSeriesDataPoint> DataPoints { get; set; } = new List<TimeSeriesDataPoint>();
+    }
+
+    /// <summary>
     /// チャートデータセット
     /// </summary>
     public class ChartDataSet : ChartDataBase
     {
         public ObservableCollection<BarChartDataPoint> DataPoints { get; } = new ObservableCollection<BarChartDataPoint>();
         public ObservableCollection<AggregationData> AggregationDataCollection { get; } = new ObservableCollection<AggregationData>();
+        public ObservableCollection<TimeSeriesCollection> TimeSeriesData { get; } = new ObservableCollection<TimeSeriesCollection>();
         public ChartConfiguration Configuration { get; set; } = new ChartConfiguration();
 
         private int _totalItems = 0;
@@ -363,5 +459,16 @@ namespace GadgetTools.Core.Models
             get => _lastUpdated;
             set => SetProperty(ref _lastUpdated, value);
         }
+    }
+
+    /// <summary>
+    /// 時間期間のヘルパークラス
+    /// </summary>
+    public class TimePeriod
+    {
+        public DateTime Start { get; set; }
+        public DateTime End { get; set; }
+        public string Label { get; set; } = "";
+        public string ShortLabel { get; set; } = "";
     }
 }

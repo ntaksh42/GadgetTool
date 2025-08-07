@@ -243,6 +243,7 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="Filter:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <TextBox Grid.Column="1" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
@@ -255,7 +256,10 @@
                         <Button Grid.Column="4" Content="Columns..." Width="80" 
                                 Margin="5,0,0,0" Command="{Binding ShowColumnVisibilityCommand}"
                                 ToolTip="Show/hide columns"/>
-                        <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <Button Grid.Column="5" Content="📊 Chart" Width="70" 
+                                Margin="5,0,0,0" Command="{Binding ShowAreaChartCommand}" 
+                                ToolTip="エリアごとの集計をチャートで表示"/>
+                        <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
                             <!-- エラー表示 -->
                             <Border Background="#FFEBEE" BorderBrush="#F44336" BorderThickness="1" 
                                     Padding="5" CornerRadius="3" Margin="0,0,10,0"
@@ -363,7 +367,6 @@
                     <RadioButton Content="Detailed Markdown" IsChecked="{Binding DetailedMarkdown}" Margin="0,0,20,0"/>
                     <RadioButton Content="Table Only" IsChecked="{Binding DetailedMarkdown, Converter={StaticResource BooleanInverseConverter}}" Margin="0,0,20,0"/>
                         <Button Content="Save to File..." Width="100" Command="{Binding SaveResultCommand}"/>
-                        <Button Content="📊 Area Chart" Width="100" Margin="10,0,0,0" Command="{Binding ShowAreaChartCommand}" ToolTip="エリアごとの集計をチャートで表示"/>
                         <Button Content="🧪 Sample Data" Width="100" Margin="10,0,0,0" Command="{Binding LoadSampleDataCommand}" ToolTip="テスト用のサンプルデータを読み込み"/>
                     </StackPanel>
                     </Grid>

@@ -70,42 +70,61 @@
                 
                 <!-- Filter Controls -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="分類:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                    <ComboBox x:Name="CategoryTypeComboBox" 
-                              Style="{StaticResource FilterComboBoxStyle}"
-                              SelectedItem="{Binding SelectedCategoryType, Mode=TwoWay}">
-                        <ComboBoxItem Content="機能別" Tag="Feature"/>
-                        <ComboBoxItem Content="優先度別" Tag="Priority"/>
-                        <ComboBoxItem Content="エリア別" Tag="Area"/>
-                        <ComboBoxItem Content="種類別" Tag="WorkItemType"/>
-                        <ComboBoxItem Content="状態別" Tag="State"/>
-                        <ComboBoxItem Content="担当者別" Tag="AssignedTo"/>
-                    </ComboBox>
+                    <!-- Mode Toggle -->
+                    <CheckBox Content="時系列表示" IsChecked="{Binding IsTimeSeriesMode}" VerticalAlignment="Center" 
+                              ToolTip="時系列トレンド分析モードに切り替え" Margin="0,0,20,0"/>
+                    
+                    <!-- Category Controls (for non-time series) -->
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsTimeSeriesMode}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        
+                        <TextBlock Text="分類:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox x:Name="CategoryTypeComboBox" 
+                                  Style="{StaticResource FilterComboBoxStyle}"
+                                  SelectedItem="{Binding SelectedCategoryType, Mode=TwoWay}"/>
+                    </StackPanel>
+                    
+                    <!-- Time Period Controls (for time series) -->
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsTimeSeriesMode}" Value="False">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        
+                        <TextBlock Text="期間:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox x:Name="TimePeriodComboBox" 
+                                  Style="{StaticResource FilterComboBoxStyle}"
+                                  SelectedItem="{Binding SelectedTimePeriod, Mode=TwoWay}"/>
+                        
+                        <TextBlock Text="開始:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                        <DatePicker SelectedDate="{Binding StartDate}" Margin="0,0,10,0" Width="120"/>
+                        
+                        <TextBlock Text="終了:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <DatePicker SelectedDate="{Binding EndDate}" Width="120"/>
+                    </StackPanel>
                     
                     <TextBlock Text="集計タイプ:" VerticalAlignment="Center" Margin="15,0,5,0"/>
                     <ComboBox x:Name="AggregationTypeComboBox" 
                               Style="{StaticResource FilterComboBoxStyle}"
-                              SelectedItem="{Binding SelectedAggregationType, Mode=TwoWay}">
-                        <ComboBoxItem Content="総数" Tag="TotalCount"/>
-                        <ComboBoxItem Content="Active数" Tag="ActiveCount"/>
-                        <ComboBoxItem Content="Resolved数" Tag="ResolvedCount"/>
-                        <ComboBoxItem Content="Closed数" Tag="ClosedCount"/>
-                        <ComboBoxItem Content="Bug数" Tag="BugCount"/>
-                        <ComboBoxItem Content="Task数" Tag="TaskCount"/>
-                        <ComboBoxItem Content="User Story数" Tag="UserStoryCount"/>
-                        <ComboBoxItem Content="Feature数" Tag="FeatureCount"/>
-                        <ComboBoxItem Content="高優先度数" Tag="HighPriorityCount"/>
-                        <ComboBoxItem Content="中優先度数" Tag="MediumPriorityCount"/>
-                        <ComboBoxItem Content="低優先度数" Tag="LowPriorityCount"/>
-                    </ComboBox>
+                              SelectedItem="{Binding SelectedAggregationType, Mode=TwoWay}"/>
                     
                     <TextBlock Text="チャートタイプ:" VerticalAlignment="Center" Margin="20,0,5,0"/>
                     <ComboBox x:Name="ChartTypeComboBox" 
                               Style="{StaticResource FilterComboBoxStyle}"
-                              SelectedItem="{Binding SelectedChartType, Mode=TwoWay}">
-                        <ComboBoxItem Content="縦棒グラフ" Tag="Bar"/>
-                        <ComboBoxItem Content="横棒グラフ" Tag="HorizontalBar"/>
-                    </ComboBox>
+                              SelectedItem="{Binding SelectedChartType, Mode=TwoWay}"/>
                     
                     <CheckBox Content="値を表示" IsChecked="{Binding ShowValues}" VerticalAlignment="Center" Margin="20,0,0,0"/>
                     <CheckBox Content="パーセンテージ" IsChecked="{Binding ShowPercentages}" VerticalAlignment="Center" Margin="15,0,0,0"/>

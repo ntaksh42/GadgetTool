@@ -24,6 +24,10 @@ namespace GadgetTools.Core.ViewModels
         private bool _showValues = true;
         private bool _showPercentages = false;
         private bool _showPriorityBreakdown = false;
+        private TimePeriodType _selectedTimePeriod = TimePeriodType.Monthly;
+        private DateTime _startDate = DateTime.Today.AddMonths(-6);
+        private DateTime _endDate = DateTime.Today;
+        private bool _isTimeSeriesMode = false;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -90,6 +94,62 @@ namespace GadgetTools.Core.ViewModels
         {
             get => _showPriorityBreakdown;
             set => SetProperty(ref _showPriorityBreakdown, value);
+        }
+
+        public TimePeriodType SelectedTimePeriod
+        {
+            get => _selectedTimePeriod;
+            set
+            {
+                if (SetProperty(ref _selectedTimePeriod, value))
+                {
+                    if (_isTimeSeriesMode) ProcessTimeSeriesData();
+                }
+            }
+        }
+
+        public DateTime StartDate
+        {
+            get => _startDate;
+            set
+            {
+                if (SetProperty(ref _startDate, value))
+                {
+                    if (_isTimeSeriesMode) ProcessTimeSeriesData();
+                }
+            }
+        }
+
+        public DateTime EndDate
+        {
+            get => _endDate;
+            set
+            {
+                if (SetProperty(ref _endDate, value))
+                {
+                    if (_isTimeSeriesMode) ProcessTimeSeriesData();
+                }
+            }
+        }
+
+        public bool IsTimeSeriesMode
+        {
+            get => _isTimeSeriesMode;
+            set
+            {
+                if (SetProperty(ref _isTimeSeriesMode, value))
+                {
+                    if (value)
+                    {
+                        ProcessTimeSeriesData();
+                    }
+                    else
+                    {
+                        ProcessWorkItems();
+                    }
+                    OnPropertyChanged(nameof(ChartTitle));
+                }
+            }
         }
 
         public string ChartTitle => GetChartTitle();
@@ -281,6 +341,113 @@ namespace GadgetTools.Core.ViewModels
             return workItem.Fields.Priority;
         }
 
+        private void ProcessTimeSeriesData()
+        {
+            _aggregations.Clear();
+            
+            var timePeriods = GenerateTimePeriods(_startDate, _endDate, _selectedTimePeriod);
+            
+            foreach (var period in timePeriods)
+            {
+                var periodStart = period.Start;
+                var periodEnd = period.End;
+                
+                var createdInPeriod = _originalWorkItems
+                    .Where(wi => wi.Fields.CreatedDate >= periodStart && wi.Fields.CreatedDate < periodEnd)
+                    .ToList();
+                
+                var resolvedInPeriod = _originalWorkItems
+                    .Where(wi => (wi.Fields.State == "Resolved" || wi.Fields.State == "Closed") && 
+                               wi.Fields.ChangedDate >= periodStart && 
+                               wi.Fields.ChangedDate < periodEnd)
+                    .ToList();
+                
+                var aggregationData = new AggregationData
+                {
+                    CategoryPath = period.Label,
+                    CategoryName = period.ShortLabel,
+                    WorkItems = createdInPeriod
+                };
+                
+                // 時系列特有の集計
+                aggregationData.TotalCount = GetTimeSeriesValue(createdInPeriod, resolvedInPeriod, _selectedAggregationType);
+                
+                // その他の集計も計算
+                CalculateAggregationValues(aggregationData);
+                
+                _aggregations.Add(aggregationData);
+            }
+            
+            OnPropertyChanged(nameof(Aggregations));
+        }
+        
+        private int GetTimeSeriesValue(List<WorkItem> createdItems, List<WorkItem> resolvedItems, AggregationType type)
+        {
+            return type switch
+            {
+                AggregationType.CreatedTrend => createdItems.Count,
+                AggregationType.ResolvedTrend => resolvedItems.Count,
+                AggregationType.CumulativeCreated => createdItems.Count, // これは後で累積計算する
+                _ => createdItems.Count
+            };
+        }
+        
+        private List<TimePeriod> GenerateTimePeriods(DateTime start, DateTime end, TimePeriodType periodType)
+        {
+            var periods = new List<TimePeriod>();
+            var current = start;
+            
+            while (current < end)
+            {
+                var periodEnd = periodType switch
+                {
+                    TimePeriodType.Daily => current.AddDays(1),
+                    TimePeriodType.Weekly => current.AddDays(7),
+                    TimePeriodType.Monthly => current.AddMonths(1),
+                    TimePeriodType.Quarterly => current.AddMonths(3),
+                    _ => current.AddMonths(1)
+                };
+                
+                if (periodEnd > end) periodEnd = end;
+                
+                periods.Add(new TimePeriod
+                {
+                    Start = current,
+                    End = periodEnd,
+                    Label = FormatPeriodLabel(current, periodType),
+                    ShortLabel = FormatPeriodShortLabel(current, periodType)
+                });
+                
+                current = periodEnd;
+            }
+            
+            return periods;
+        }
+        
+        private string FormatPeriodLabel(DateTime date, TimePeriodType periodType)
+        {
+            return periodType switch
+            {
+                TimePeriodType.Daily => date.ToString("yyyy年MM月dd日"),
+                TimePeriodType.Weekly => $"{date:yyyy年MM月dd日}週",
+                TimePeriodType.Monthly => date.ToString("yyyy年MM月"),
+                TimePeriodType.Quarterly => $"{date.Year}年Q{(date.Month - 1) / 3 + 1}",
+                _ => date.ToString("yyyy年MM月")
+            };
+        }
+        
+        private string FormatPeriodShortLabel(DateTime date, TimePeriodType periodType)
+        {
+            return periodType switch
+            {
+                TimePeriodType.Daily => date.ToString("MM/dd"),
+                TimePeriodType.Weekly => date.ToString("MM/dd"),
+                TimePeriodType.Monthly => date.ToString("yyyy/MM"),
+                TimePeriodType.Quarterly => $"{date.Year}Q{(date.Month - 1) / 3 + 1}",
+                _ => date.ToString("yyyy/MM")
+            };
+        }
+
         #endregion
 
         #region Chart Data
@@ -429,9 +596,30 @@ namespace GadgetTools.Core.ViewModels
 
         private string GetChartTitle()
         {
-            var categoryName = GetCategoryTypeDisplayName(_selectedCategoryType);
-            var typeName = GetAggregationTypeDisplayName(_selectedAggregationType);
-            return $"{categoryName}{typeName}";
+            if (_isTimeSeriesMode)
+            {
+                var periodName = GetTimePeriodDisplayName(_selectedTimePeriod);
+                var typeName = GetAggregationTypeDisplayName(_selectedAggregationType);
+                return $"{periodName}{typeName}";
+            }
+            else
+            {
+                var categoryName = GetCategoryTypeDisplayName(_selectedCategoryType);
+                var typeName = GetAggregationTypeDisplayName(_selectedAggregationType);
+                return $"{categoryName}{typeName}";
+            }
+        }
+
+        private string GetTimePeriodDisplayName(TimePeriodType type)
+        {
+            return type switch
+            {
+                TimePeriodType.Daily => "日別",
+                TimePeriodType.Weekly => "週別",
+                TimePeriodType.Monthly => "月別",
+                TimePeriodType.Quarterly => "四半期別",
+                _ => "月別"
+            };
         }
 
         private string GetCategoryTypeDisplayName(CategoryType type)
@@ -464,6 +652,11 @@ namespace GadgetTools.Core.ViewModels
                 AggregationType.HighPriorityCount => "高優先度数",
                 AggregationType.MediumPriorityCount => "中優先度数",
                 AggregationType.LowPriorityCount => "低優先度数",
+                AggregationType.CreatedTrend => "作成トレンド",
+                AggregationType.ResolvedTrend => "解決トレンド",
+                AggregationType.UpdatedTrend => "更新トレンド",
+                AggregationType.CumulativeCreated => "累積作成数",
+                AggregationType.BurndownChart => "バーンダウン",
                 _ => "総数"
             };
         }
