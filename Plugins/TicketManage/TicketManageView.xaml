@@ -393,14 +393,6 @@
                 <TextBlock Grid.Row="3" Grid.Column="0" Text="Max Results:" VerticalAlignment="Center" Margin="0,3,8,3"/>
                 <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding MaxResults}" Margin="0,3,8,6"/>
                 
-                <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" Margin="0,3,0,6">
-                    <Button Content="Test Connection" Width="120" Margin="0,0,10,0" 
-                            Command="{Binding TestConnectionCommand}"/>
-                    <Button Content="🎯 Advanced" ToolTip="Advanced Filter" Padding="8,3" 
-                            Command="{Binding ShowAdvancedFilterCommand}"/>
-                    <Button Content="🔍 Global" ToolTip="Global Search" Padding="8,3" Margin="5,0,0,0" 
-                            Command="{Binding ShowGlobalSearchCommand}"/>
-                </StackPanel>
                         <Button Grid.Row="3" Grid.Column="3" Content="Query Work Items" Margin="0,3,0,6" 
                                 Command="{Binding QueryWorkItemsCommand}"/>
                                 
