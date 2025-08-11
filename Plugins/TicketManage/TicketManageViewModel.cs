@@ -563,7 +563,7 @@ namespace GadgetTools.Plugins.TicketManage
                 StatusMessage = "接続をテスト中...";
 
                 var config = CreateAzureDevOpsConfig();
-                using var service = new AzureDevOpsService(config);
+                using var service = new AzureDevOpsService(config, true); // 共有HTTPクライアント使用
 
                 // 簡単なクエリでテスト
                 var testRequest = new WorkItemQueryRequest
@@ -597,6 +597,8 @@ namespace GadgetTools.Plugins.TicketManage
             if (!ValidateInput())
                 return;
 
+            using var performanceMeasurement = PerformanceOptimizationService.Instance.MeasureOperation("QueryWorkItems");
+            
             try
             {
                 ClearError();
@@ -606,7 +608,7 @@ namespace GadgetTools.Plugins.TicketManage
                 var config = CreateAzureDevOpsConfig();
                 var request = CreateQueryRequest(config);
 
-                using var service = new AzureDevOpsService(config);
+                using var service = new AzureDevOpsService(config, true); // 共有HTTPクライアント使用
                 var workItems = await service.GetWorkItemsAsync(request);
 
                 _allWorkItems.Clear();
@@ -753,7 +755,7 @@ namespace GadgetTools.Plugins.TicketManage
                 try
                 {
                     var config = CreateAzureDevOpsConfig();
-                    using var service = new AzureDevOpsService(config);
+                    using var service = new AzureDevOpsService(config, true); // 共有HTTPクライアント使用
                     comments = await service.GetWorkItemCommentsAsync(workItem.Id, Project);
                     System.Diagnostics.Debug.WriteLine($"Retrieved {comments.Count} comments for Work Item #{workItem.Id}");
                     
@@ -874,10 +876,13 @@ namespace GadgetTools.Plugins.TicketManage
                     MarkdownPreview = converter.ConvertToTable(_allWorkItems);
                 }
                 
-                // Generate HTML list view asynchronously
-                var htmlContent = await Task.Run(() => 
-                    TicketHtmlService.GenerateListViewHtml(_allWorkItems, title));
-                HtmlPreview = htmlContent;
+                // Generate HTML list view asynchronously with performance monitoring
+                using (PerformanceOptimizationService.Instance.MeasureOperation("GenerateHTML"))
+                {
+                    var htmlContent = await Task.Run(() => 
+                        TicketHtmlService.GenerateListViewHtml(_allWorkItems, title));
+                    HtmlPreview = htmlContent;
+                }
             }
             catch (Exception ex)
             {

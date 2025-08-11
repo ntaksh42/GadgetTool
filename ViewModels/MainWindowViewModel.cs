@@ -39,6 +39,9 @@ namespace GadgetTools.ViewModels
             _pluginManager = PluginManager.Instance;
             WindowClosingCommand = new AsyncRelayCommand(OnWindowClosingAsync);
             
+            // パフォーマンス監視サービスを初期化
+            InitializePerformanceMonitoring();
+            
             // プラグインの読み込みを開始
             _ = InitializeAsync();
         }
@@ -176,6 +179,41 @@ namespace GadgetTools.ViewModels
             }
         }
 
+        private void InitializePerformanceMonitoring()
+        {
+            try
+            {
+                // メモリ監視サービスを初期化
+                var memoryMonitor = MemoryMonitorService.Instance;
+                memoryMonitor.MemoryWarning += OnMemoryWarning;
+                
+                // パフォーマンス最適化サービスを初期化
+                var performanceService = PerformanceOptimizationService.Instance;
+                performanceService.PerformanceWarning += OnPerformanceWarning;
+                
+                System.Diagnostics.Debug.WriteLine("Performance monitoring initialized");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to initialize performance monitoring: {ex.Message}");
+            }
+        }
+        
+        private void OnMemoryWarning(object? sender, MemoryWarningEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine($"Memory warning: {e.Message}");
+            if (e.Level == MemoryWarningLevel.Critical)
+            {
+                StatusMessage = $"⚠️ メモリ使用量が高くなっています: {e.MemoryUsage.WorkingSetMB}MB";
+            }
+        }
+        
+        private void OnPerformanceWarning(object? sender, PerformanceWarningEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine($"Performance warning: {e.Message}");
+            StatusMessage = $"⚠️ 処理時間が長くなっています: {e.OperationName} ({e.ActualTimeMs}ms)";
+        }
+
         private async Task OnWindowClosingAsync()
         {
             try
@@ -188,6 +226,10 @@ namespace GadgetTools.ViewModels
 
                 // プラグインマネージャーをクリーンアップ
                 await _pluginManager.CleanupAllPluginsAsync();
+                
+                // パフォーマンス監視サービスをクリーンアップ
+                MemoryMonitorService.Instance.Dispose();
+                PerformanceOptimizationService.Instance.Dispose();
             }
             catch (Exception ex)
             {

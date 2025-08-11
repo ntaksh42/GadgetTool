@@ -8,23 +8,58 @@ namespace GadgetTools.Services
     public class AzureDevOpsService : IDisposable
     {
         private readonly HttpClient _httpClient;
+        private static readonly HttpClient _sharedClient = new HttpClient();
+        private readonly bool _isSharedClient;
+        
+        // キャッシュ用
+        private static readonly Dictionary<string, (List<WorkItem> items, DateTime cachedAt)> _workItemCache 
+            = new Dictionary<string, (List<WorkItem> items, DateTime cachedAt)>();
+        private static readonly TimeSpan _cacheExpiry = TimeSpan.FromMinutes(5);
         private readonly AzureDevOpsConfig _config;
 
-        public AzureDevOpsService(AzureDevOpsConfig config)
+        public AzureDevOpsService(AzureDevOpsConfig config) : this(config, false)
+        {
+        }
+        
+        public AzureDevOpsService(AzureDevOpsConfig config, bool useSharedClient = false)
         {
             _config = config;
-            _httpClient = new HttpClient();
+            _isSharedClient = useSharedClient;
+            
+            if (useSharedClient)
+            {
+                _httpClient = _sharedClient;
+            }
+            else
+            {
+                _httpClient = new HttpClient();
+            }
             
             // Basic認証のヘッダーを設定
             var authToken = Convert.ToBase64String(Encoding.ASCII.GetBytes($":{config.PersonalAccessToken}"));
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authToken);
             _httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            
+            // タイムアウト設定
+            if (!useSharedClient)
+            {
+                _httpClient.Timeout = TimeSpan.FromMinutes(2);
+            }
         }
 
         public async Task<List<WorkItem>> GetWorkItemsAsync(WorkItemQueryRequest request)
         {
             try
             {
+                // キャッシュチェック
+                var cacheKey = GenerateCacheKey(request);
+                if (_workItemCache.TryGetValue(cacheKey, out var cached) && 
+                    DateTime.Now - cached.cachedAt < _cacheExpiry)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Returning cached work items for key: {cacheKey}");
+                    return new List<WorkItem>(cached.items);
+                }
+                
                 var allWorkItems = new List<WorkItem>();
                 var projects = GetProjectsToQuery(request);
                 
@@ -56,7 +91,15 @@ namespace GadgetTools.Services
                 }
                 
                 // MaxResultsでカット
-                return allWorkItems.Take(request.MaxResults).ToList();
+                var result = allWorkItems.Take(request.MaxResults).ToList();
+                
+                // キャッシュに保存
+                _workItemCache[cacheKey] = (result, DateTime.Now);
+                
+                // 古いキャッシュエントリをクリーンアップ
+                CleanupExpiredCache();
+                
+                return result;
             }
             catch (Exception ex)
             {
@@ -719,9 +762,44 @@ namespace GadgetTools.Services
             }
         }
 
+        private string GenerateCacheKey(WorkItemQueryRequest request)
+        {
+            var keyBuilder = new StringBuilder();
+            keyBuilder.Append($"{request.Organization}_{request.Project}_{request.WorkItemType}_{request.State}");
+            keyBuilder.Append($"_{request.MaxResults}_{string.Join(",", request.Projects ?? new List<string>())}");
+            keyBuilder.Append($"_{string.Join(",", request.AreaPaths ?? new List<string>())}");
+            keyBuilder.Append($"_{string.Join(",", request.IterationPaths ?? new List<string>())}");
+            return keyBuilder.ToString();
+        }
+        
+        private static void CleanupExpiredCache()
+        {
+            var keysToRemove = new List<string>();
+            foreach (var kvp in _workItemCache)
+            {
+                if (DateTime.Now - kvp.Value.cachedAt > _cacheExpiry)
+                {
+                    keysToRemove.Add(kvp.Key);
+                }
+            }
+            
+            foreach (var key in keysToRemove)
+            {
+                _workItemCache.Remove(key);
+            }
+        }
+        
+        public static void ClearCache()
+        {
+            _workItemCache.Clear();
+        }
+
         public void Dispose()
         {
-            _httpClient?.Dispose();
+            if (!_isSharedClient)
+            {
+                _httpClient?.Dispose();
+            }
         }
     }
 }

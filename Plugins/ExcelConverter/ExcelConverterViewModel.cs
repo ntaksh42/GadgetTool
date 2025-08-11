@@ -4,6 +4,7 @@ using System.Text;
 using System.Windows.Input;
 using Microsoft.Win32;
 using GadgetTools.Core.Models;
+using GadgetTools.Core.Services;
 
 namespace GadgetTools.Plugins.ExcelConverter
 {
@@ -234,6 +235,8 @@ namespace GadgetTools.Plugins.ExcelConverter
 
         private async Task ConvertSingleFileAsync()
         {
+            using var performanceMeasurement = PerformanceOptimizationService.Instance.MeasureOperation("ConvertExcel");
+            
             if (string.IsNullOrWhiteSpace(FilePath) || !File.Exists(FilePath))
             {
                 SetError("有効なExcelファイルを選択してください。");
@@ -244,8 +247,20 @@ namespace GadgetTools.Plugins.ExcelConverter
             
             string? targetSheet = IsAllSheets ? null : SelectedSheet;
             
-            var convertedContent = await Task.Run(() => 
-                GadgetToolsConverter.ConvertExcel(FilePath, targetSheet, SelectedOutputFormat));
+            // プログレス表示を開始
+            IsProgressVisible = true;
+            ProgressValue = 0;
+            
+            var convertedContent = await Task.Run(async () =>
+            {
+                // プログレス更新
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => ProgressValue = 25);
+                
+                var result = GadgetToolsConverter.ConvertExcel(FilePath, targetSheet, SelectedOutputFormat);
+                
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => ProgressValue = 100);
+                return result;
+            });
 
             if (IsDisplayMode)
             {
@@ -261,7 +276,17 @@ namespace GadgetTools.Plugins.ExcelConverter
                 }
 
                 await File.WriteAllTextAsync(OutputFilePath, convertedContent, Encoding.UTF8);
-                PreviewContent = convertedContent;
+                
+                // メモリ効率化のため、大きなファイルのプレビューは制限
+                if (convertedContent.Length > 100000)
+                {
+                    PreviewContent = convertedContent.Substring(0, 100000) + "\n\n...[File too large, showing first 100,000 characters]";
+                }
+                else
+                {
+                    PreviewContent = convertedContent;
+                }
+                
                 StatusMessage = $"変換が完了しました（{Path.GetFileName(OutputFilePath)} に保存）";
             }
         }
