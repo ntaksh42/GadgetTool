@@ -1,0 +1,319 @@
+<UserControl x:Class="GadgetTools.Plugins.AppUninstaller.AppUninstallerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="1000">
+    
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </UserControl.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="200"/>
+        </Grid.RowDefinitions>
+        
+        <!-- ツールバー -->
+        <Border Grid.Row="0" Background="#F0F0F0" Padding="10" BorderBrush="#D0D0D0" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- 検索ボックス -->
+                <TextBox Grid.Column="0" 
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         Margin="0,0,10,0"
+                         VerticalAlignment="Center"
+                         Height="25">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="TextBox">
+                                        <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3">
+                                            <Grid>
+                                                <ScrollViewer x:Name="PART_ContentHost" Margin="8,0"/>
+                                                <TextBlock Text="アプリ名または発行元で検索..."
+                                                          Foreground="Gray"
+                                                          Margin="10,0"
+                                                          VerticalAlignment="Center"
+                                                          IsHitTestVisible="False">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource TemplatedParent}}" Value="">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+                
+                <!-- 更新ボタン -->
+                <Button Grid.Column="1" 
+                        Content="🔄 更新"
+                        Command="{Binding LoadAppsCommand}"
+                        Margin="0,0,10,0"
+                        Padding="10,5"
+                        Height="25"
+                        VerticalAlignment="Center"/>
+                
+                <!-- アプリ数表示 -->
+                <TextBlock Grid.Column="2" 
+                          Text="{Binding TotalApps, StringFormat='総計: {0} アプリ'}"
+                          VerticalAlignment="Center"
+                          Foreground="#666666"/>
+            </Grid>
+        </Border>
+        
+        <!-- 選択とアクション -->
+        <Border Grid.Row="1" Background="White" Padding="10" BorderBrush="#D0D0D0" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <CheckBox Grid.Column="0" 
+                          Content="すべて選択"
+                          IsChecked="{Binding SelectAll}"
+                          VerticalAlignment="Center"
+                          Margin="0,0,15,0"/>
+                
+                <TextBlock Grid.Column="1"
+                          Text="{Binding SelectedCount, StringFormat='選択済み: {0} アプリ'}"
+                          VerticalAlignment="Center"
+                          Foreground="#333333"
+                          Margin="0,0,15,0"/>
+                
+                <Button Grid.Column="3"
+                        Content="🗑️ 選択したアプリをアンインストール"
+                        Command="{Binding UninstallSelectedCommand}"
+                        Background="#DC3545"
+                        Foreground="White"
+                        Padding="15,8"
+                        FontWeight="Bold">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                               CornerRadius="4"
+                                               BorderBrush="#BD2130" 
+                                               BorderThickness="1">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#C82333"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Background" Value="#CCCCCC"/>
+                                    <Setter Property="Foreground" Value="#666666"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Border>
+        
+        <!-- アプリリスト -->
+        <DataGrid Grid.Row="2" 
+                  ItemsSource="{Binding FilteredApps}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserReorderColumns="True"
+                  CanUserResizeColumns="True"
+                  CanUserResizeRows="False"
+                  CanUserSortColumns="True"
+                  GridLinesVisibility="Horizontal"
+                  HeadersVisibility="Column"
+                  SelectionMode="Extended"
+                  AlternatingRowBackground="#F8F9FA">
+            
+            <DataGrid.Columns>
+                <DataGridCheckBoxColumn Binding="{Binding IsSelected}" Width="40" Header="選択"/>
+                <DataGridTextColumn Binding="{Binding Name}" Header="アプリ名" Width="300"/>
+                <DataGridTextColumn Binding="{Binding Publisher}" Header="発行元" Width="200"/>
+                <DataGridTextColumn Binding="{Binding Version}" Header="バージョン" Width="100"/>
+                <DataGridTextColumn Binding="{Binding FormattedSize}" Header="サイズ" Width="80"/>
+                <DataGridTextColumn Binding="{Binding FormattedInstallDate}" Header="インストール日" Width="100"/>
+                <DataGridTextColumn Binding="{Binding InstallLocation}" Header="インストール場所" Width="*"/>
+            </DataGrid.Columns>
+            
+            <DataGrid.Style>
+                <Style TargetType="DataGrid">
+                    <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                </Style>
+            </DataGrid.Style>
+            
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Setter Property="Height" Value="30"/>
+                </Style>
+            </DataGrid.RowStyle>
+        </DataGrid>
+        
+        <!-- プログレスバーとコントロール -->
+        <Border Grid.Row="3" 
+                Background="#F8F9FA" 
+                Padding="10" 
+                BorderBrush="#D0D0D0" 
+                BorderThickness="0,1,0,1"
+                Visibility="{Binding IsUninstalling, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                          Text="{Binding ProgressText}"
+                          Margin="0,0,0,5"
+                          FontWeight="SemiBold"/>
+                
+                <ProgressBar Grid.Row="1" Grid.Column="0"
+                            Value="{Binding ProgressValue, Mode=OneWay}"
+                            Maximum="100"
+                            Height="20"
+                            Margin="0,0,10,0"/>
+                
+                <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                        Content="キャンセル"
+                        Command="{Binding CancelUninstallCommand}"
+                        Background="#6C757D"
+                        Foreground="White"
+                        Padding="15,8"
+                        VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+        
+        <!-- 結果リスト -->
+        <Grid Grid.Row="4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
+            <Border Grid.Row="0" Background="#E9ECEF" Padding="10" BorderBrush="#D0D0D0" BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Grid.Column="0"
+                              Text="アンインストール結果"
+                              FontWeight="Bold"
+                              VerticalAlignment="Center"/>
+                              
+                    <Button Grid.Column="1"
+                            Content="クリア"
+                            Command="{Binding ClearResultsCommand}"
+                            Padding="10,3"
+                            Background="Transparent"
+                            BorderBrush="#6C757D"/>
+                </Grid>
+            </Border>
+            
+            <DataGrid Grid.Row="1"
+                      ItemsSource="{Binding UninstallResults}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      CanUserReorderColumns="False"
+                      CanUserResizeColumns="True"
+                      IsReadOnly="True"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column">
+                
+                <DataGrid.Columns>
+                    <DataGridTextColumn Binding="{Binding App.Name}" Header="アプリ名" Width="300"/>
+                    <DataGridTextColumn Binding="{Binding Status}" Header="状態" Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}" Value="Success">
+                                        <Setter Property="Foreground" Value="Green"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Status}" Value="Failed">
+                                        <Setter Property="Foreground" Value="Red"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Binding="{Binding Message}" Header="メッセージ" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+        
+        <!-- ローディングオーバーレイ -->
+        <Grid Grid.RowSpan="5" 
+              Background="White" 
+              Opacity="0.8"
+              Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="20" Margin="0,0,0,10"/>
+                <TextBlock Text="{Binding StatusMessage}" 
+                          HorizontalAlignment="Center"
+                          FontSize="14"
+                          Foreground="#333333"/>
+            </StackPanel>
+        </Grid>
+        
+        <!-- エラーメッセージ -->
+        <Border Grid.RowSpan="5" 
+                Background="#F8D7DA" 
+                BorderBrush="#F5C6CB" 
+                BorderThickness="1"
+                Margin="10"
+                Padding="15"
+                CornerRadius="4"
+                VerticalAlignment="Top"
+                Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel>
+                <TextBlock Text="エラー" 
+                          FontWeight="Bold" 
+                          Foreground="#721C24"
+                          Margin="0,0,0,5"/>
+                <TextBlock Text="{Binding ErrorMessage}" 
+                          Foreground="#721C24"
+                          TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
