@@ -630,5 +630,119 @@ namespace GadgetTools.Plugins.PullRequestManagement
         }
 
         #endregion
+
+        #region Multi-selection Event Handlers
+
+        private void RemoveProject_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is string project)
+            {
+                if (_viewModel?.Projects != null && _viewModel.Projects.Contains(project))
+                {
+                    _viewModel.Projects.Remove(project);
+                }
+            }
+        }
+
+        private void SelectProjects_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null) return;
+
+            try
+            {
+                // Use the same MultipleSelectionDialog as TicketManage
+                var availableProjects = _viewModel.AllProjects?.ToList() ?? new List<string>();
+                var selectedProjects = _viewModel.Projects?.ToList() ?? new List<string>();
+
+                var dialog = new GadgetTools.Core.Views.MultipleSelectionDialog
+                {
+                    Title = "Select Projects",
+                    Owner = Window.GetWindow(this),
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    ItemsSource = availableProjects,
+                    SelectedItems = selectedProjects
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    var newSelection = dialog.SelectedItems;
+                    _viewModel.Projects.Clear();
+                    foreach (var project in newSelection)
+                    {
+                        _viewModel.Projects.Add(project);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error selecting projects: {ex.Message}", "Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void RemoveRepository_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is string repository)
+            {
+                if (_viewModel?.Repositories != null && _viewModel.Repositories.Contains(repository))
+                {
+                    _viewModel.Repositories.Remove(repository);
+                }
+            }
+        }
+
+        private void SelectRepositories_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null) return;
+
+            try
+            {
+                // Use the same MultipleSelectionDialog as TicketManage
+                var availableRepositories = _viewModel.AllRepositories?.ToList() ?? new List<string>();
+                var selectedRepositories = _viewModel.Repositories?.ToList() ?? new List<string>();
+
+                var dialog = new GadgetTools.Core.Views.MultipleSelectionDialog
+                {
+                    Title = "Select Repositories",
+                    Owner = Window.GetWindow(this),
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    ItemsSource = availableRepositories,
+                    SelectedItems = selectedRepositories
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    var newSelection = dialog.SelectedItems;
+                    _viewModel.Repositories.Clear();
+                    foreach (var repository in newSelection)
+                    {
+                        _viewModel.Repositories.Add(repository);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error selecting repositories: {ex.Message}", "Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void LoadProjects_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel != null)
+            {
+                await _viewModel.LoadProjectsAsync();
+            }
+        }
+
+        private async void LoadRepositories_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel != null)
+            {
+                await _viewModel.LoadRepositoriesAsync();
+            }
+        }
+
+        #endregion
     }
 }

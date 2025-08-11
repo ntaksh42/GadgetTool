@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.TeamFoundation.SourceControl.WebApi;
+using Microsoft.TeamFoundation.Core.WebApi;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
 
@@ -16,6 +17,8 @@ namespace GadgetTools.Plugins.PullRequestManagement
         Task<IEnumerable<PullRequest>> GetPullRequestsAsync();
         Task<IEnumerable<PullRequest>> GetPullRequestsAsync(string project, string repository);
         Task<IEnumerable<PullRequest>> GetPullRequestsAsync(string project, string repository, PullRequestSearchOptions? options = null);
+        Task<List<string>> GetProjectsAsync();
+        Task<List<string>> GetRepositoriesAsync(string project);
     }
     
     /// <summary>
@@ -249,6 +252,40 @@ namespace GadgetTools.Plugins.PullRequestManagement
         private string GeneratePullRequestUrl(int pullRequestId, string project, string repository)
         {
             return $"https://dev.azure.com/{_config.Organization}/{project}/_git/{repository}/pullrequest/{pullRequestId}";
+        }
+
+        /// <summary>
+        /// Get all projects from the Azure DevOps organization
+        /// </summary>
+        public async Task<List<string>> GetProjectsAsync()
+        {
+            try
+            {
+                var projectClient = _connection.GetClient<Microsoft.TeamFoundation.Core.WebApi.ProjectHttpClient>();
+                var projects = await projectClient.GetProjects();
+                return projects.Select(p => p.Name).OrderBy(name => name).ToList();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to get projects: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Get all repositories for a specific project
+        /// </summary>
+        public async Task<List<string>> GetRepositoriesAsync(string project)
+        {
+            try
+            {
+                var gitClient = _connection.GetClient<GitHttpClient>();
+                var repositories = await gitClient.GetRepositoriesAsync(project);
+                return repositories.Select(r => r.Name).OrderBy(name => name).ToList();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to get repositories for project '{project}': {ex.Message}", ex);
+            }
         }
 
         #endregion

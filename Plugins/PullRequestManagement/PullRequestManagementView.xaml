@@ -13,6 +13,7 @@
         <local:BooleanToColorConverter x:Key="BooleanToColorConverter"/>
         <local:BooleanToConnectionStatusConverter x:Key="BooleanToConnectionStatusConverter"/>
         <local:ConflictStatusConverter x:Key="ConflictStatusConverter"/>
+        <local:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter"/>
         
         <!-- Expanderのカスタムスタイル -->
         <Style TargetType="Expander">
@@ -31,6 +32,129 @@
             <Setter Property="Background" Value="#FAFAFA"/>
             <Setter Property="Padding" Value="15"/>
             <Setter Property="Margin" Value="0,5,0,0"/>
+        </Style>
+
+        <!-- Custom TextBox style with lighter focus color -->
+        <Style TargetType="TextBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                Background="{TemplateBinding Background}" 
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="false">
+                                <Setter Property="Opacity" TargetName="border" Value="0.56"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="true">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#7EB4EA"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="true">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#A5D6FF"/>
+                                <Setter Property="Background" TargetName="border" Value="#FAFDFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Custom Button style with lighter focus color -->
+        <Style TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                Background="{TemplateBinding Background}" 
+                                SnapsToDevicePixels="true">
+                            <ContentPresenter x:Name="contentPresenter" 
+                                              Focusable="False" 
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                              Margin="{TemplateBinding Padding}" 
+                                              RecognizesAccessKey="True" 
+                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" 
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsDefaulted" Value="true">
+                                <Setter Property="BorderBrush" TargetName="border" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="true">
+                                <Setter Property="Background" TargetName="border" Value="#E3F2FD"/>
+                                <Setter Property="BorderBrush" TargetName="border" Value="#90CAF9"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="true">
+                                <Setter Property="Background" TargetName="border" Value="#BBDEFB"/>
+                                <Setter Property="BorderBrush" TargetName="border" Value="#42A5F5"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="true">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#B3E5FC"/>
+                                <Setter Property="Background" TargetName="border" Value="#F1F8FF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="false">
+                                <Setter Property="Background" TargetName="border" Value="#FFF4F4F4"/>
+                                <Setter Property="BorderBrush" TargetName="border" Value="#FFADB2B5"/>
+                                <Setter Property="TextElement.Foreground" TargetName="contentPresenter" Value="#FF838383"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Custom ComboBox style with lighter focus color -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid x:Name="templateRoot" SnapsToDevicePixels="true">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition MinWidth="{DynamicResource {x:Static SystemParameters.VerticalScrollBarWidthKey}}" Width="0"/>
+                            </Grid.ColumnDefinitions>
+                            <Popup x:Name="PART_Popup" AllowsTransparency="true" Grid.ColumnSpan="2" IsOpen="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" Margin="1" PopupAnimation="{DynamicResource {x:Static SystemParameters.ComboBoxPopupAnimationKey}}" Placement="Bottom">
+                                <Border x:Name="dropDownBorder" BorderBrush="{DynamicResource {x:Static SystemColors.WindowFrameBrushKey}}" BorderThickness="1" Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
+                                    <ScrollViewer x:Name="DropDownScrollViewer">
+                                        <Grid x:Name="grid" RenderOptions.ClearTypeHint="Enabled">
+                                            <Canvas x:Name="canvas" HorizontalAlignment="Left" Height="0" VerticalAlignment="Top" Width="0">
+                                                <Rectangle x:Name="opaqueRect" Fill="{Binding Background, ElementName=dropDownBorder}" Height="{Binding ActualHeight, ElementName=dropDownBorder}" Width="{Binding ActualWidth, ElementName=dropDownBorder}"/>
+                                            </Canvas>
+                                            <ItemsPresenter x:Name="ItemsPresenter" KeyboardNavigation.DirectionalNavigation="Contained" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                        </Grid>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                            <ToggleButton x:Name="toggleButton" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" Grid.ColumnSpan="2" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" Style="{DynamicResource ComboBoxToggleButton}"/>
+                            <ContentPresenter x:Name="contentPresenter" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" Content="{TemplateBinding SelectionBoxItem}" ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" IsHitTestVisible="false" Margin="{TemplateBinding Padding}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasDropShadow" SourceName="PART_Popup" Value="true">
+                                <Setter Property="Margin" TargetName="dropDownBorder" Value="0,2,0,0"/>
+                            </Trigger>
+                            <Trigger Property="HasItems" Value="false">
+                                <Setter Property="Height" TargetName="dropDownBorder" Value="95"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsGrouping" Value="true"/>
+                                    <Condition Property="VirtualizingPanel.IsVirtualizingWhenGrouping" Value="false"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="ScrollViewer.CanContentScroll" TargetName="DropDownScrollViewer" Value="false"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsKeyboardFocused" Value="true">
+                                <Setter Property="BorderBrush" TargetName="toggleButton" Value="#64B5F6"/>
+                                <Setter Property="Background" TargetName="toggleButton" Value="#F0F8FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
     
@@ -82,12 +206,10 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     
                     <!-- Project and Repository Row -->
-                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -95,95 +217,134 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         
-                        <TextBlock Grid.Column="0" Text="Project:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                        <TextBox Grid.Column="1" Text="{Binding Project}" Margin="0,0,10,5"
-                                 ToolTip="Project name in your Azure DevOps organization"/>
+                        <TextBlock Grid.Column="0" Text="Projects:" VerticalAlignment="Top" Margin="0,0,8,3"/>
+                        <StackPanel Grid.Column="1" Margin="0,0,8,6">
+                            <!-- Multi-selection Controls -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <!-- Multi-select display area -->
+                                <Border Grid.Column="0" BorderBrush="#D1D1D1" BorderThickness="1" Background="White" 
+                                         Padding="6,3" MinHeight="24" Margin="0,0,5,0">
+                                    <Grid>
+                                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                            <ItemsControl ItemsSource="{Binding Projects}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel Orientation="Horizontal"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#E3F2FD" BorderBrush="#2196F3" BorderThickness="1" 
+                                                                CornerRadius="12" Padding="6,2" Margin="0,0,3,2">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding}" FontSize="10" VerticalAlignment="Center"/>
+                                                                <Button Content="×" FontSize="9" FontWeight="Bold" 
+                                                                        Background="Transparent" BorderThickness="0" 
+                                                                        Foreground="#1976D2" Padding="2,0" Margin="3,0,0,0"
+                                                                        ToolTip="Remove this project"
+                                                                        Tag="{Binding}" Click="RemoveProject_Click"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                        <!-- Placeholder text when empty -->
+                                        <TextBlock Text="Click ⟲ to load projects from organization..." FontStyle="Italic" Foreground="#999" 
+                                                   VerticalAlignment="Center" FontSize="10"
+                                                   Visibility="{Binding Projects.Count, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                                    </Grid>
+                                </Border>
+                                
+                                <!-- Load button -->
+                                <Button Grid.Column="1" Content="⟲" Width="24" Height="24" FontSize="12" FontWeight="Bold"
+                                        Background="#2196F3" Foreground="White" BorderThickness="0" Margin="0,0,3,0"
+                                        ToolTip="Load projects from organization" Click="LoadProjects_Click"/>
+                                
+                                <!-- Add button -->
+                                <Button Grid.Column="2" Content="+" Width="24" Height="24" FontSize="12" FontWeight="Bold"
+                                        Background="#4CAF50" Foreground="White" BorderThickness="0"
+                                        ToolTip="Add projects" Click="SelectProjects_Click"/>
+                            </Grid>
+                            
+                            <!-- Legacy single project input (hidden) -->
+                            <TextBox Text="{Binding Project}" Visibility="Collapsed" />
+                        </StackPanel>
                         
-                        <TextBlock Grid.Column="2" Text="Repository:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                        <TextBox Grid.Column="3" Text="{Binding Repository}" Margin="0,0,0,5"
-                                 ToolTip="Repository name"/>
+                        <TextBlock Grid.Column="2" Text="Repositories:" VerticalAlignment="Top" Margin="0,0,8,3"/>
+                        <StackPanel Grid.Column="3" Margin="0,0,0,6">
+                            <!-- Multi-selection Controls -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <!-- Multi-select display area -->
+                                <Border Grid.Column="0" BorderBrush="#D1D1D1" BorderThickness="1" Background="White" 
+                                         Padding="6,3" MinHeight="24" Margin="0,0,5,0">
+                                    <Grid>
+                                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                            <ItemsControl ItemsSource="{Binding Repositories}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel Orientation="Horizontal"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#F3E5F5" BorderBrush="#9C27B0" BorderThickness="1" 
+                                                                CornerRadius="10" Padding="6,2" Margin="0,0,3,2">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding}" FontSize="10" VerticalAlignment="Center"/>
+                                                                <Button Content="×" FontSize="9" FontWeight="Bold" 
+                                                                        Background="Transparent" BorderThickness="0" 
+                                                                        Foreground="#7B1FA2" Padding="2,0" Margin="3,0,0,0"
+                                                                        ToolTip="Remove this repository"
+                                                                        Tag="{Binding}" Click="RemoveRepository_Click"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                        <!-- Placeholder text when empty -->
+                                        <TextBlock Text="Click ⟲ to load repositories for selected projects..." FontStyle="Italic" Foreground="#999" 
+                                                   VerticalAlignment="Center" FontSize="10"
+                                                   Visibility="{Binding Repositories.Count, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                                    </Grid>
+                                </Border>
+                                
+                                <!-- Load button -->
+                                <Button Grid.Column="1" Content="⟲" Width="24" Height="24" FontSize="12" FontWeight="Bold"
+                                        Background="#9C27B0" Foreground="White" BorderThickness="0" Margin="0,0,3,0"
+                                        ToolTip="Load repositories for selected projects" Click="LoadRepositories_Click"/>
+                                
+                                <!-- Add button -->
+                                <Button Grid.Column="2" Content="+" Width="24" Height="24" FontSize="12" FontWeight="Bold"
+                                        Background="#9C27B0" Foreground="White" BorderThickness="0"
+                                        ToolTip="Add repositories" Click="SelectRepositories_Click"/>
+                            </Grid>
+                            
+                            <!-- Legacy single repository input (hidden) -->
+                            <TextBox Text="{Binding Repository}" Visibility="Collapsed" />
+                        </StackPanel>
                     </Grid>
                     
                     <!-- Action Buttons -->
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button Content="Load Pull Requests" Padding="10,5" Command="{Binding LoadPullRequestsCommand}"/>
-                        <Button Content="Refresh" Padding="10,5" Margin="10,0,0,0" Command="{Binding RefreshCommand}"/>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,6">
+                        <Button Content="Load Pull Requests" Padding="8,3" Command="{Binding LoadPullRequestsCommand}"/>
+                        <Button Content="Refresh" Padding="8,3" Margin="8,0,0,0" Command="{Binding RefreshCommand}"/>
                         
-                        <!-- Quick Filters -->
-                        <TextBlock Text="Quick Filters:" VerticalAlignment="Center" FontWeight="Bold" Margin="20,0,5,0"/>
-                        <Button Content="My PRs" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterMyPRsCommand}" 
-                                ToolTip="Show only PRs created by me"/>
-                        <Button Content="Active" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterActiveCommand}" 
-                                ToolTip="Show only active PRs"/>
-                        <Button Content="Needs Review" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterNeedsReviewCommand}" 
-                                ToolTip="Show PRs waiting for review"/>
-                        <Button Content="Approved" Padding="8,3" Margin="5,0" Command="{Binding QuickFilterApprovedCommand}" 
-                                ToolTip="Show approved PRs"/>
-                        
-                        <Separator Margin="10,0"/>
-                        
-                        <Button Content="🎯 Advanced" Padding="8,3" Margin="5,0" Command="{Binding ShowAdvancedFilterCommand}" 
-                                ToolTip="Open advanced filtering options"/>
-                        <Button Content="🔍 Global" Padding="8,3" Margin="5,0" Command="{Binding ShowGlobalSearchCommand}" 
-                                ToolTip="Search across all plugins"/>
                     </StackPanel>
                     
-                    <!-- Basic Filters -->
-                    <Grid Grid.Row="2" Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        
-                        <TextBlock Grid.Column="0" Text="Author:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <TextBox Grid.Column="1" Text="{Binding AuthorFilter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0" 
-                                 ToolTip="Filter by pull request author"/>
-                        
-                        <TextBlock Grid.Column="2" Text="Target:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <TextBox Grid.Column="3" Text="{Binding TargetBranchFilter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0" 
-                                 ToolTip="Filter by target branch"/>
-                        
-                        <TextBlock Grid.Column="4" Text="From Date:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <DatePicker Grid.Column="5" SelectedDate="{Binding FromDate}" Margin="0,0,10,0" 
-                                   ToolTip="Filter pull requests from this date"/>
-                        
-                        <TextBlock Grid.Column="6" Text="Status:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <ComboBox Grid.Column="7" ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" 
-                                  ToolTip="Filter by PR status"/>
-                    </Grid>
-                    
-                    <!-- Advanced Filters -->
-                    <Grid Grid.Row="3">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        
-                        <TextBlock Grid.Column="0" Text="Search:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <TextBox Grid.Column="1" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0" 
-                                 ToolTip="Search by Title or Created By"/>
-                        
-                        <TextBlock Grid.Column="2" Text="File Type:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <TextBox Grid.Column="3" Text="{Binding FileExtensionFilter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0" 
-                                 ToolTip="Filter by file extension (e.g., .cs, .js)"/>
-                        
-                        <TextBlock Grid.Column="4" Text="Min Changes:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <TextBox Grid.Column="5" Text="{Binding MinChangesFilter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0" 
-                                 ToolTip="Minimum number of file changes"/>
-                        
-                        <Button Grid.Column="6" Content="Clear All" Padding="8,3" Command="{Binding ClearAllFiltersCommand}"/>
-                    </Grid>
                 </Grid>
             </Border>
         </Expander>

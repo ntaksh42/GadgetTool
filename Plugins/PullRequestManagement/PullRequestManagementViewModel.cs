@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
@@ -50,6 +51,12 @@ namespace GadgetTools.Plugins.PullRequestManagement
         public ObservableCollection<PullRequest> PullRequests { get; } = new();
         public ObservableCollection<string> StatusOptions { get; } = new() { "All", "Active", "Completed", "Abandoned", "Draft" };
         public ObservableCollection<SavedSearch> SavedSearches { get; } = new();
+
+        // Multi-selection properties
+        public ObservableCollection<string> Projects { get; } = new();
+        public ObservableCollection<string> Repositories { get; } = new();
+        public ObservableCollection<string> AllProjects { get; } = new();
+        public ObservableCollection<string> AllRepositories { get; } = new();
 
         public ICollectionView FilteredPullRequests => _pullRequestsViewSource.View;
 
@@ -248,13 +255,17 @@ namespace GadgetTools.Plugins.PullRequestManagement
             // Monitor shared config changes
             _configService.ConfigurationChanged += OnSharedConfigChanged;
             
+            // Monitor collection changes to update command states
+            Projects.CollectionChanged += (s, e) => UpdateCommandStates();
+            Repositories.CollectionChanged += (s, e) => UpdateCommandStates();
+            
             // Monitor column filter changes
             _columnFilterManager.FilterChanged += OnColumnFilterChanged;
         }
 
         private async Task LoadPullRequestsAsync()
         {
-            if (!ValidateConfiguration())
+            if (!ValidateMultiSelectConfiguration())
                 return;
 
             try
@@ -266,8 +277,6 @@ namespace GadgetTools.Plugins.PullRequestManagement
                 var config = new AzureDevOpsConfig
                 {
                     Organization = Organization,
-                    Project = Project,
-                    Repository = Repository,
                     PersonalAccessToken = PersonalAccessToken
                 };
 
@@ -281,13 +290,31 @@ namespace GadgetTools.Plugins.PullRequestManagement
                     TargetBranchFilter = string.IsNullOrWhiteSpace(TargetBranchFilter) ? null : TargetBranchFilter.Trim()
                 };
                 
-                var pullRequests = await _azureDevOpsService.GetPullRequestsAsync(Project, Repository, searchOptions);
+                var allPullRequests = new List<PullRequest>();
+                
+                // Load pull requests for each project/repository combination
+                foreach (var project in Projects)
+                {
+                    foreach (var repository in Repositories)
+                    {
+                        try
+                        {
+                            StatusMessage = $"Loading pull requests from {project}/{repository}...";
+                            var pullRequests = await _azureDevOpsService.GetPullRequestsAsync(project, repository, searchOptions);
+                            allPullRequests.AddRange(pullRequests);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error loading PRs from {project}/{repository}: {ex.Message}");
+                        }
+                    }
+                }
 
                 _allPullRequests.Clear();
-                _allPullRequests.AddRange(pullRequests);
+                _allPullRequests.AddRange(allPullRequests);
 
                 PullRequests.Clear();
-                foreach (var pr in pullRequests)
+                foreach (var pr in allPullRequests)
                 {
                     PullRequests.Add(pr);
                 }
@@ -298,7 +325,7 @@ namespace GadgetTools.Plugins.PullRequestManagement
                 UpdateColumnFilterData();
                 
                 IsConnected = true;
-                StatusMessage = $"Loaded {pullRequests.Count()} pull requests";
+                StatusMessage = $"Loaded {allPullRequests.Count} pull requests from {Projects.Count} projects, {Repositories.Count} repositories";
             }
             catch (Exception ex)
             {
@@ -614,17 +641,46 @@ namespace GadgetTools.Plugins.PullRequestManagement
             return true;
         }
 
+        private bool ValidateMultiSelectConfiguration()
+        {
+            var validation = _configService.ValidateConfiguration();
+            if (!validation.isValid)
+            {
+                SetError($"Global config error: {validation.errorMessage}");
+                return false;
+            }
+
+            if (Projects.Count == 0)
+            {
+                SetError("Please select at least one project.");
+                return false;
+            }
+
+            if (Repositories.Count == 0)
+            {
+                SetError("Please select at least one repository.");
+                return false;
+            }
+
+            return true;
+        }
+
         private bool CanExecuteLoad()
         {
             return !IsLoading &&
                    _configService.IsConfigured &&
-                   !string.IsNullOrWhiteSpace(Project) &&
-                   !string.IsNullOrWhiteSpace(Repository);
+                   Projects.Count > 0 &&
+                   Repositories.Count > 0;
         }
 
         private bool CanExecuteRefresh()
         {
             return !IsLoading && _azureDevOpsService != null;
+        }
+
+        private void UpdateCommandStates()
+        {
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
 
         private bool CanDeleteSearch()
@@ -868,6 +924,119 @@ namespace GadgetTools.Plugins.PullRequestManagement
         public event EventHandler<ColumnFilterRequestedEventArgs>? ColumnFilterRequested;
         public event EventHandler? ShowColumnVisibilityRequested;
 
+        /// <summary>
+        /// Load projects from Azure DevOps organization
+        /// </summary>
+        public async Task LoadProjectsAsync()
+        {
+            if (!IsSharedConfigured)
+            {
+                StatusMessage = "Azure DevOps configuration required";
+                return;
+            }
+
+            try
+            {
+                IsLoading = true;
+                StatusMessage = "Loading projects...";
+
+                if (_azureDevOpsService == null)
+                {
+                    var config = new AzureDevOpsConfig 
+                    { 
+                        Organization = _configService.Organization, 
+                        PersonalAccessToken = _configService.PersonalAccessToken 
+                    };
+                    _azureDevOpsService = new AzureDevOpsPullRequestService(config);
+                }
+
+                var projects = await _azureDevOpsService.GetProjectsAsync();
+                
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    AllProjects.Clear();
+                    foreach (var project in projects.OrderBy(p => p))
+                    {
+                        AllProjects.Add(project);
+                    }
+                });
+
+                StatusMessage = $"Loaded {projects.Count} projects";
+            }
+            catch (Exception ex)
+            {
+                SetError($"Failed to load projects: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error loading projects: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        /// <summary>
+        /// Load repositories for the selected projects
+        /// </summary>
+        public async Task LoadRepositoriesAsync()
+        {
+            if (!IsSharedConfigured || Projects.Count == 0)
+            {
+                StatusMessage = "Select projects first";
+                return;
+            }
+
+            try
+            {
+                IsLoading = true;
+                StatusMessage = "Loading repositories...";
+
+                if (_azureDevOpsService == null)
+                {
+                    var config = new AzureDevOpsConfig 
+                    { 
+                        Organization = _configService.Organization, 
+                        PersonalAccessToken = _configService.PersonalAccessToken 
+                    };
+                    _azureDevOpsService = new AzureDevOpsPullRequestService(config);
+                }
+
+                var allRepositories = new List<string>();
+
+                foreach (var project in Projects)
+                {
+                    try
+                    {
+                        var repositories = await _azureDevOpsService.GetRepositoriesAsync(project);
+                        allRepositories.AddRange(repositories);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error loading repositories for project {project}: {ex.Message}");
+                    }
+                }
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    AllRepositories.Clear();
+                    foreach (var repo in allRepositories.OrderBy(r => r))
+                    {
+                        AllRepositories.Add(repo);
+                    }
+                });
+
+                StatusMessage = $"Loaded {allRepositories.Count} repositories";
+            }
+            catch (Exception ex)
+            {
+                SetError($"Failed to load repositories: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error loading repositories: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
         private void ShowColumnVisibility()
         {
             try
@@ -881,6 +1050,7 @@ namespace GadgetTools.Plugins.PullRequestManagement
                 System.Diagnostics.Debug.WriteLine($"Error in ShowColumnVisibility: {ex.Message}");
             }
         }
+
 
         #endregion
     }
