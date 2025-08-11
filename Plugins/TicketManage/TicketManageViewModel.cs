@@ -29,6 +29,8 @@ namespace GadgetTools.Plugins.TicketManage
         private string _area = "";
         private List<string> _iterations = new List<string>();
         private List<string> _areas = new List<string>();
+        private List<string> _workItemTypes = new List<string>();
+        private List<string> _states = new List<string>();
         private int _maxResults = 50;
         private bool _detailedMarkdown = true;
         private int _highlightDays = 7;
@@ -59,11 +61,11 @@ namespace GadgetTools.Plugins.TicketManage
 
         #region Collections
         public ObservableCollection<WorkItem> WorkItems { get; } = new();
-        public ObservableCollection<string> WorkItemTypes { get; } = new()
+        public ObservableCollection<string> AllWorkItemTypes { get; } = new()
         {
             "All", "Bug", "Task", "User Story", "Feature", "Epic"
         };
-        public ObservableCollection<string> States { get; } = new()
+        public ObservableCollection<string> AllStates { get; } = new()
         {
             "All", "Active", "New", "Resolved", "Closed"
         };
@@ -130,6 +132,52 @@ namespace GadgetTools.Plugins.TicketManage
                 {
                     OnPropertyChanged(nameof(SearchCriteriaSummary));
                 }
+            }
+        }
+
+        public List<string> WorkItemTypes
+        {
+            get => _workItemTypes;
+            set
+            {
+                if (SetProperty(ref _workItemTypes, value))
+                {
+                    OnPropertyChanged(nameof(WorkItemTypesPreview));
+                    OnPropertyChanged(nameof(SearchCriteriaSummary));
+                }
+            }
+        }
+
+        public List<string> States
+        {
+            get => _states;
+            set
+            {
+                if (SetProperty(ref _states, value))
+                {
+                    OnPropertyChanged(nameof(StatesPreview));
+                    OnPropertyChanged(nameof(SearchCriteriaSummary));
+                }
+            }
+        }
+
+        public string WorkItemTypesPreview
+        {
+            get
+            {
+                if (WorkItemTypes == null || WorkItemTypes.Count == 0)
+                    return "All work item types";
+                return $"{WorkItemTypes.Count} types: {string.Join(", ", WorkItemTypes.Take(3))}{(WorkItemTypes.Count > 3 ? "..." : "")}";
+            }
+        }
+
+        public string StatesPreview
+        {
+            get
+            {
+                if (States == null || States.Count == 0)
+                    return "All states";
+                return $"{States.Count} states: {string.Join(", ", States.Take(3))}{(States.Count > 3 ? "..." : "")}";
             }
         }
 

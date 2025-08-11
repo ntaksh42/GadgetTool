@@ -950,6 +950,88 @@ namespace GadgetTools.Plugins.TicketManage
             }
         }
 
+        // 削除ボタンのイベントハンドラー
+        private void RemoveProject_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null || sender is not Button button || button.Tag is not string projectName) return;
+            
+            var projects = _viewModel.Projects.ToList();
+            projects.Remove(projectName);
+            _viewModel.Projects = projects;
+        }
+
+        private void RemoveIteration_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null || sender is not Button button || button.Tag is not string iterationName) return;
+            
+            var iterations = _viewModel.Iterations.ToList();
+            iterations.Remove(iterationName);
+            _viewModel.Iterations = iterations;
+        }
+
+        private void RemoveArea_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null || sender is not Button button || button.Tag is not string areaName) return;
+            
+            var areas = _viewModel.Areas.ToList();
+            areas.Remove(areaName);
+            _viewModel.Areas = areas;
+        }
+
+        private void RemoveWorkItemType_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null || sender is not Button button || button.Tag is not string typeName) return;
+            
+            var types = _viewModel.WorkItemTypes.ToList();
+            types.Remove(typeName);
+            _viewModel.WorkItemTypes = types;
+        }
+
+        private void RemoveState_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null || sender is not Button button || button.Tag is not string stateName) return;
+            
+            var states = _viewModel.States.ToList();
+            states.Remove(stateName);
+            _viewModel.States = states;
+        }
+
+        private void SelectWorkItemTypes_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null) return;
+
+            var dialog = new MultipleSelectionDialog
+            {
+                Title = "Select Work Item Types",
+                ItemsSource = _viewModel.AllWorkItemTypes?.ToList() ?? new List<string>(),
+                SelectedItems = _viewModel.WorkItemTypes.ToList(),
+                Owner = Window.GetWindow(this)
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _viewModel.WorkItemTypes = dialog.SelectedItems;
+            }
+        }
+
+        private void SelectStates_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null) return;
+
+            var dialog = new MultipleSelectionDialog
+            {
+                Title = "Select States",
+                ItemsSource = _viewModel.AllStates?.ToList() ?? new List<string>(),
+                SelectedItems = _viewModel.States.ToList(),
+                Owner = Window.GetWindow(this)
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _viewModel.States = dialog.SelectedItems;
+            }
+        }
+
         #endregion
     }
 }

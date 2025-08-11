@@ -3,12 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:converters="clr-namespace:GadgetTools.Converters"
+             xmlns:converters="clr-namespace:GadgetTools.Core.Models"
              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              mc:Ignorable="d" 
              d:DesignHeight="700" d:DesignWidth="1000">
     
     <UserControl.Resources>
+        <!-- Converters -->
+        <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter"/>
+        
         <!-- Expanderのカスタムスタイル -->
         <Style TargetType="Expander">
             <Setter Property="Margin" Value="0,0,0,10"/>
@@ -62,55 +65,38 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
-        <!-- Azure DevOps設定 -->
-        <Expander Grid.Row="0" Header="Azure DevOps Configuration" IsExpanded="False">
-                <Border Style="{StaticResource ExpanderContentBorder}">
-                    <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                
-                <!-- 共通設定ステータス -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Global Config:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,5">
-                    <Ellipse Width="10" Height="10" Margin="0,0,5,0">
-                        <Ellipse.Fill>
-                            <SolidColorBrush Color="{Binding IsSharedConfigured, Converter={StaticResource BooleanToColorConverter}}"/>
-                        </Ellipse.Fill>
-                    </Ellipse>
-                    <TextBlock Text="{Binding Organization}" FontWeight="Medium" Margin="0,0,5,0"/>
-                    <TextBlock Text="(" Foreground="Gray"/>
-                    <TextBlock Text="{Binding IsSharedConfigured, Converter={StaticResource BooleanToConnectionStatusConverter}}" Foreground="Gray"/>
-                    <TextBlock Text=")" Foreground="Gray"/>
-                </StackPanel>
-                <Button Grid.Row="0" Grid.Column="2" Content="⚙ Global Settings" Width="120" Margin="5,0,0,5" 
-                        Click="GlobalSettings_Click" ToolTip="Configure shared Azure DevOps settings"/>
-                
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Projects:" VerticalAlignment="Top" Margin="0,5,10,5"/>
-                <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,5">
-                    <!-- Input Controls -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                        <TextBox Text="{Binding Project}" Width="150" Margin="0,0,10,0"
-                                 ToolTip="Single project name (for compatibility)"/>
-                        <Button Content="..." Width="30" Height="23" ToolTip="Select multiple projects" 
-                                Click="SelectProjects_Click"/>
-                        <TextBlock Text="{Binding Projects.Count}" VerticalAlignment="Center" Margin="10,0,5,0" FontWeight="Medium"/>
-                        <TextBlock Text="selected" VerticalAlignment="Center" FontSize="11" Foreground="Gray"/>
+        <!-- Global Settings -->
+        <Expander Grid.Row="0" Header="Global Settings" IsExpanded="True">
+            <Border Style="{StaticResource ExpanderContentBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- 共通設定ステータス -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Azure DevOps Config:" VerticalAlignment="Center" Margin="0,0,10,5"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,5">
+                        <Ellipse Width="10" Height="10" Margin="0,0,5,0">
+                            <Ellipse.Fill>
+                                <SolidColorBrush Color="{Binding IsSharedConfigured, Converter={StaticResource BooleanToColorConverter}}"/>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <TextBlock Text="{Binding Organization}" FontWeight="Medium" Margin="0,0,5,0"/>
+                        <TextBlock Text="(" Foreground="Gray"/>
+                        <TextBlock Text="{Binding IsSharedConfigured, Converter={StaticResource BooleanToConnectionStatusConverter}}" Foreground="Gray"/>
+                        <TextBlock Text=")" Foreground="Gray"/>
                     </StackPanel>
-                    <!-- Preview -->
-                    <TextBlock Text="{Binding ProjectsPreview}" Style="{StaticResource PreviewTextStyle}"
-                               MaxWidth="400" ToolTip="{Binding ProjectsPreview}"/>
-                </StackPanel>
-                    </Grid>
-                </Border>
-            </Expander>
+                    <Button Grid.Row="0" Grid.Column="2" Content="⚙ Configure" Width="100" Margin="5,0,0,5" 
+                            Click="GlobalSettings_Click" ToolTip="Configure shared Azure DevOps settings"/>
+                </Grid>
+            </Border>
+        </Expander>
+        
         
         <!-- クエリ設定 -->
         <Expander Grid.Row="1" Header="Query and Filter Settings" IsExpanded="True">
@@ -121,59 +107,293 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="1.5*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="1.5*"/>
                 </Grid.ColumnDefinitions>
                 
-                <!-- 1行目：Work Item Type と State -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Work Item Type:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding WorkItemTypes}" 
-                          SelectedItem="{Binding WorkItemType}" Margin="0,0,10,5"/>
-                
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="State:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                <ComboBox Grid.Row="0" Grid.Column="3" ItemsSource="{Binding States}" 
-                          SelectedItem="{Binding State}" Margin="0,0,0,5"/>
-                
-                <!-- 2行目：Iteration と Area -->
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Iterations:" VerticalAlignment="Top" Margin="0,5,10,5"/>
-                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,10,5">
-                    <!-- Input Controls -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                        <TextBox Text="{Binding Iteration}" Width="100" Margin="0,0,5,0"
-                                 ToolTip="Single iteration (for compatibility)"/>
-                        <Button Content="..." Width="25" Height="23" ToolTip="Select multiple iterations" 
-                                Click="SelectIterations_Click"/>
-                        <TextBlock Text="{Binding Iterations.Count}" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="10" FontWeight="Medium"/>
-                    </StackPanel>
-                    <!-- Preview -->
-                    <TextBlock Text="{Binding IterationsPreview}" Style="{StaticResource PreviewTextStyle}"
-                               MaxWidth="180" ToolTip="{Binding IterationsPreview}"/>
+                <!-- Projects Row -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Projects:" VerticalAlignment="Top" Margin="0,0,10,5"/>
+                <StackPanel Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,0,0,10">
+                    <!-- Multi-selection Controls -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Multi-select display area -->
+                        <Border Grid.Column="0" BorderBrush="#D1D1D1" BorderThickness="1" Background="White" 
+                                 Padding="8,5" MinHeight="28" Margin="0,0,5,0">
+                            <Grid>
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding Projects}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#E3F2FD" BorderBrush="#2196F3" BorderThickness="1" 
+                                                        CornerRadius="12" Padding="8,3" Margin="0,0,5,2">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding}" FontSize="11" VerticalAlignment="Center"/>
+                                                        <Button Content="×" FontSize="10" FontWeight="Bold" 
+                                                                Background="Transparent" BorderThickness="0" 
+                                                                Foreground="#1976D2" Padding="2,0" Margin="5,0,0,0"
+                                                                ToolTip="Remove this project"
+                                                                Tag="{Binding}" Click="RemoveProject_Click"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <!-- Placeholder text when empty -->
+                                <TextBlock Text="Click + to add projects..." FontStyle="Italic" Foreground="#999" 
+                                           VerticalAlignment="Center" FontSize="11"
+                                           Visibility="{Binding Projects.Count, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                            </Grid>
+                        </Border>
+                        
+                        <!-- Add button only -->
+                        <Button Grid.Column="1" Content="+" Width="28" Height="28" FontSize="14" FontWeight="Bold"
+                                Background="#4CAF50" Foreground="White" BorderThickness="0"
+                                ToolTip="Add projects" Click="SelectProjects_Click"/>
+                    </Grid>
+                    
+                    <!-- Legacy single project input (hidden by default) -->
+                    <TextBox Text="{Binding Project}" Visibility="Collapsed" />
                 </StackPanel>
                 
-                <TextBlock Grid.Row="1" Grid.Column="2" Text="Areas:" VerticalAlignment="Top" Margin="0,5,10,5"/>
+                <!-- 2行目：Work Item Type と State -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Work Item Type:" VerticalAlignment="Top" Margin="0,5,10,5"/>
+                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,10,10">
+                    <!-- Multi-selection Controls -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Multi-select display area -->
+                        <Border Grid.Column="0" BorderBrush="#D1D1D1" BorderThickness="1" Background="White" 
+                                 Padding="6,4" MinHeight="26" Margin="0,0,5,0">
+                            <Grid>
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding WorkItemTypes}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#E8F5E8" BorderBrush="#4CAF50" BorderThickness="1" 
+                                                         Padding="6,2" Margin="0,0,3,2">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding}" FontSize="10" VerticalAlignment="Center"/>
+                                                        <Button Content="×" FontSize="9" FontWeight="Bold" 
+                                                                Background="Transparent" BorderThickness="0" 
+                                                                Foreground="#388E3C" Padding="2,0" Margin="3,0,0,0"
+                                                                ToolTip="Remove this work item type"
+                                                                Tag="{Binding}" Click="RemoveWorkItemType_Click"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <!-- Placeholder text when empty -->
+                                <TextBlock Text="All types" FontStyle="Italic" Foreground="#999" 
+                                           VerticalAlignment="Center" FontSize="10"
+                                           Visibility="{Binding WorkItemTypes.Count, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                            </Grid>
+                        </Border>
+                        
+                        <!-- Add button only -->
+                        <Button Grid.Column="1" Content="+" Width="24" Height="24" FontSize="12" FontWeight="Bold"
+                                Background="#4CAF50" Foreground="White" BorderThickness="0"
+                                ToolTip="Select work item types" Click="SelectWorkItemTypes_Click"/>
+                    </Grid>
+                    
+                    <!-- Legacy single work item type input (hidden) -->
+                    <ComboBox ItemsSource="{Binding AllWorkItemTypes}" SelectedItem="{Binding WorkItemType}" Visibility="Collapsed"/>
+                </StackPanel>
+                
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="State:" VerticalAlignment="Top" Margin="0,0,0,5"/>
                 <StackPanel Grid.Row="1" Grid.Column="3" Margin="0,0,0,5">
-                    <!-- Input Controls -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                        <TextBox Text="{Binding Area}" Width="100" Margin="0,0,5,0"
-                                 ToolTip="Single area (for compatibility)"/>
-                        <Button Content="..." Width="25" Height="23" ToolTip="Select multiple areas" 
-                                Click="SelectAreas_Click"/>
-                        <TextBlock Text="{Binding Areas.Count}" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="10" FontWeight="Medium"/>
-                    </StackPanel>
-                    <!-- Preview -->
-                    <TextBlock Text="{Binding AreasPreview}" Style="{StaticResource PreviewTextStyle}"
-                               MaxWidth="180" ToolTip="{Binding AreasPreview}"/>
+                    <!-- Multi-selection Controls -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Multi-select display area -->
+                        <Border Grid.Column="0" BorderBrush="#D1D1D1" BorderThickness="1" Background="White" 
+                                 Padding="6,4" MinHeight="26" Margin="0,0,5,0">
+                            <Grid>
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding States}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#FFF8E1" BorderBrush="#FFC107" BorderThickness="1" 
+                                                         Padding="6,2" Margin="0,0,3,2">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding}" FontSize="10" VerticalAlignment="Center"/>
+                                                        <Button Content="×" FontSize="9" FontWeight="Bold" 
+                                                                Background="Transparent" BorderThickness="0" 
+                                                                Foreground="#F57F17" Padding="2,0" Margin="3,0,0,0"
+                                                                ToolTip="Remove this state"
+                                                                Tag="{Binding}" Click="RemoveState_Click"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <!-- Placeholder text when empty -->
+                                <TextBlock Text="All states" FontStyle="Italic" Foreground="#999" 
+                                           VerticalAlignment="Center" FontSize="10"
+                                           Visibility="{Binding States.Count, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                            </Grid>
+                        </Border>
+                        
+                        <!-- Add button only -->
+                        <Button Grid.Column="1" Content="+" Width="24" Height="24" FontSize="12" FontWeight="Bold"
+                                Background="#FFC107" Foreground="White" BorderThickness="0"
+                                ToolTip="Select states" Click="SelectStates_Click"/>
+                    </Grid>
+                    
+                    <!-- Legacy single state input (hidden) -->
+                    <ComboBox ItemsSource="{Binding AllStates}" SelectedItem="{Binding State}" Visibility="Collapsed"/>
                 </StackPanel>
                 
-                <!-- 3行目：Max Results と Buttons -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Max Results:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MaxResults}" Margin="0,0,10,0"/>
+                <!-- 3行目：Iteration と Area -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Iterations:" VerticalAlignment="Top" Margin="0,5,10,5"/>
+                <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,10,10">
+                    <!-- Multi-selection Controls -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Multi-select display area -->
+                        <Border Grid.Column="0" BorderBrush="#D1D1D1" BorderThickness="1" Background="White" 
+                                 Padding="6,4" MinHeight="26" Margin="0,0,5,0">
+                            <Grid>
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding Iterations}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#FFF3E0" BorderBrush="#FF9800" BorderThickness="1" 
+                                                        CornerRadius="10" Padding="6,2" Margin="0,0,3,2">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding}" FontSize="10" VerticalAlignment="Center"/>
+                                                        <Button Content="×" FontSize="9" FontWeight="Bold" 
+                                                                Background="Transparent" BorderThickness="0" 
+                                                                Foreground="#F57C00" Padding="2,0" Margin="3,0,0,0"
+                                                                ToolTip="Remove this iteration"
+                                                                Tag="{Binding}" Click="RemoveIteration_Click"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <!-- Placeholder text when empty -->
+                                <TextBlock Text="All iterations" FontStyle="Italic" Foreground="#999" 
+                                           VerticalAlignment="Center" FontSize="10"
+                                           Visibility="{Binding Iterations.Count, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                            </Grid>
+                        </Border>
+                        
+                        <!-- Add button only -->
+                        <Button Grid.Column="1" Content="+" Width="24" Height="24" FontSize="12" FontWeight="Bold"
+                                Background="#FF9800" Foreground="White" BorderThickness="0"
+                                ToolTip="Select iterations" Click="SelectIterations_Click"/>
+                    </Grid>
+                    
+                    <!-- Legacy single iteration input (hidden) -->
+                    <TextBox Text="{Binding Iteration}" Visibility="Collapsed"/>
+                </StackPanel>
                 
-                <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal">
+                <TextBlock Grid.Row="2" Grid.Column="2" Text="Areas:" VerticalAlignment="Top" Margin="0,0,0,5"/>
+                <StackPanel Grid.Row="2" Grid.Column="3" Margin="0,0,0,5">
+                    <!-- Multi-selection Controls -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Multi-select display area -->
+                        <Border Grid.Column="0" BorderBrush="#D1D1D1" BorderThickness="1" Background="White" 
+                                 Padding="6,4" MinHeight="26" Margin="0,0,5,0">
+                            <Grid>
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding Areas}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#F3E5F5" BorderBrush="#9C27B0" BorderThickness="1" 
+                                                        CornerRadius="10" Padding="6,2" Margin="0,0,3,2">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding}" FontSize="10" VerticalAlignment="Center"/>
+                                                        <Button Content="×" FontSize="9" FontWeight="Bold" 
+                                                                Background="Transparent" BorderThickness="0" 
+                                                                Foreground="#7B1FA2" Padding="2,0" Margin="3,0,0,0"
+                                                                ToolTip="Remove this area"
+                                                                Tag="{Binding}" Click="RemoveArea_Click"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <!-- Placeholder text when empty -->
+                                <TextBlock Text="All areas" FontStyle="Italic" Foreground="#999" 
+                                           VerticalAlignment="Center" FontSize="10"
+                                           Visibility="{Binding Areas.Count, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                            </Grid>
+                        </Border>
+                        
+                        <!-- Add button only -->
+                        <Button Grid.Column="1" Content="+" Width="24" Height="24" FontSize="12" FontWeight="Bold"
+                                Background="#9C27B0" Foreground="White" BorderThickness="0"
+                                ToolTip="Select areas" Click="SelectAreas_Click"/>
+                    </Grid>
+                    
+                    <!-- Legacy single area input (hidden) -->
+                    <TextBox Text="{Binding Area}" Visibility="Collapsed"/>
+                </StackPanel>
+                
+                <!-- 4行目：Max Results と Buttons -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Max Results:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding MaxResults}" Margin="0,0,10,0"/>
+                
+                <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal">
                     <Button Content="Test Connection" Width="120" Margin="0,0,10,0" 
                             Command="{Binding TestConnectionCommand}"/>
                     <Button Content="🎯 Advanced" ToolTip="Advanced Filter" Padding="8,3" 
@@ -181,12 +401,12 @@
                     <Button Content="🔍 Global" ToolTip="Global Search" Padding="8,3" Margin="5,0,0,0" 
                             Command="{Binding ShowGlobalSearchCommand}"/>
                 </StackPanel>
-                        <Button Grid.Row="2" Grid.Column="3" Content="Query Work Items" 
+                        <Button Grid.Row="3" Grid.Column="3" Content="Query Work Items" 
                                 Command="{Binding QueryWorkItemsCommand}"/>
                                 
-                <!-- 4行目：検索条件サマリー -->
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="Current Criteria:" VerticalAlignment="Top" Margin="0,10,10,0" FontWeight="Medium"/>
-                <Border Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" 
+                <!-- 5行目：検索条件サマリー -->
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Current Criteria:" VerticalAlignment="Top" Margin="0,10,10,0" FontWeight="Medium"/>
+                <Border Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" 
                         Background="#F0F8FF" BorderBrush="#B0D4F1" BorderThickness="1" 
                         CornerRadius="4" Padding="8" Margin="0,10,0,0">
                     <TextBlock Text="{Binding SearchCriteriaSummary}" 
@@ -266,7 +486,7 @@
                         <StackPanel Grid.Column="7" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
                             <!-- エラー表示 -->
                             <Border Background="#FFEBEE" BorderBrush="#F44336" BorderThickness="1" 
-                                    Padding="5" CornerRadius="3" Margin="0,0,10,0"
+                                    Padding="5"  Margin="0,0,10,0"
                                     Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock Text="{Binding ErrorMessage}" Foreground="#D32F2F" FontWeight="Medium" FontSize="11"/>
                             </Border>

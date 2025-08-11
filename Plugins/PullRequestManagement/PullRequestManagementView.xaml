@@ -40,27 +40,23 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*" MinHeight="400"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
-        <!-- Azure DevOps Configuration -->
-        <Expander Grid.Row="0" Header="Azure DevOps Configuration" IsExpanded="False">
+        <!-- Global Settings -->
+        <Expander Grid.Row="0" Header="Global Settings" IsExpanded="True">
             <Border Style="{StaticResource ExpanderContentBorder}">
                 <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
                     
                     <!-- 共通設定ステータス -->
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Global Config:" VerticalAlignment="Center" Margin="0,0,10,5"/>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Azure DevOps Config:" VerticalAlignment="Center" Margin="0,0,10,5"/>
                     <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,5">
                         <Ellipse Width="10" Height="10" Margin="0,0,5,0">
                             <Ellipse.Fill>
@@ -72,19 +68,12 @@
                         <TextBlock Text="{Binding IsSharedConfigured, Mode=OneWay, Converter={StaticResource BooleanToConnectionStatusConverter}}" Foreground="Gray"/>
                         <TextBlock Text=")" Foreground="Gray"/>
                     </StackPanel>
-                    <Button Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2" Content="⚙ Global Settings" Width="120" HorizontalAlignment="Right" Margin="5,0,0,5" 
+                    <Button Grid.Row="0" Grid.Column="2" Content="⚙ Configure" Width="100" Margin="5,0,0,5" 
                             Click="GlobalSettings_Click" ToolTip="Configure shared Azure DevOps settings"/>
-                    
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Project:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Project}" Margin="0,0,10,5"
-                             ToolTip="Project name in your Azure DevOps organization"/>
-                    
-                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Repository:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                    <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Repository}" Margin="0,0,0,5"
-                             ToolTip="Repository name"/>
                 </Grid>
             </Border>
         </Expander>
+        
         
         <!-- Actions and Filters -->
         <Expander Grid.Row="1" Header="Actions and Filters" IsExpanded="True">
@@ -94,10 +83,29 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     
+                    <!-- Project and Repository Row -->
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Column="0" Text="Project:" VerticalAlignment="Center" Margin="0,0,10,5"/>
+                        <TextBox Grid.Column="1" Text="{Binding Project}" Margin="0,0,10,5"
+                                 ToolTip="Project name in your Azure DevOps organization"/>
+                        
+                        <TextBlock Grid.Column="2" Text="Repository:" VerticalAlignment="Center" Margin="0,0,10,5"/>
+                        <TextBox Grid.Column="3" Text="{Binding Repository}" Margin="0,0,0,5"
+                                 ToolTip="Repository name"/>
+                    </Grid>
+                    
                     <!-- Action Buttons -->
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
                         <Button Content="Load Pull Requests" Padding="10,5" Command="{Binding LoadPullRequestsCommand}"/>
                         <Button Content="Refresh" Padding="10,5" Margin="10,0,0,0" Command="{Binding RefreshCommand}"/>
                         
@@ -121,7 +129,7 @@
                     </StackPanel>
                     
                     <!-- Basic Filters -->
-                    <Grid Grid.Row="1" Margin="0,0,0,10">
+                    <Grid Grid.Row="2" Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -151,7 +159,7 @@
                     </Grid>
                     
                     <!-- Advanced Filters -->
-                    <Grid Grid.Row="2">
+                    <Grid Grid.Row="3">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -424,7 +432,7 @@
         </Border>
         
         <!-- Status Bar -->
-        <StatusBar Grid.Row="4">
+        <StatusBar Grid.Row="3">
             <StatusBarItem>
                 <StackPanel Orientation="Horizontal">
                     <Ellipse Width="8" Height="8" Margin="0,0,5,0">
