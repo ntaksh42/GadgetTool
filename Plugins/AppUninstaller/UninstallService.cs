@@ -69,10 +69,9 @@ namespace GadgetTools.Plugins.AppUninstaller
                     {
                         FileName = uninstallCommand.ExecutablePath,
                         Arguments = uninstallCommand.Arguments,
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
+                        UseShellExecute = true,
+                        CreateNoWindow = false,
+                        Verb = "runas"
                     }
                 };
                 
@@ -100,10 +99,16 @@ namespace GadgetTools.Plugins.AppUninstaller
                 
                 process.Dispose();
             }
+            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            {
+                result.Status = UninstallStatus.Failed;
+                result.Message = "ユーザーによって管理者権限の要求がキャンセルされました";
+                result.Exception = ex;
+            }
             catch (Exception ex)
             {
                 result.Status = UninstallStatus.Failed;
-                result.Message = ex.Message;
+                result.Message = $"アンインストール実行エラー: {ex.Message}";
                 result.Exception = ex;
             }
             
