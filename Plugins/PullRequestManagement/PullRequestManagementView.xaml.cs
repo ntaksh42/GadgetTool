@@ -743,6 +743,44 @@ namespace GadgetTools.Plugins.PullRequestManagement
             }
         }
 
+        private void DataGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            OpenSelectedPullRequest();
+        }
+
+        private void DataGrid_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine($"PullRequestManager - PreviewKeyDown: {e.Key}");
+            if (e.Key == Key.Enter)
+            {
+                System.Diagnostics.Debug.WriteLine("PullRequestManager - Enter key detected, opening PR");
+                OpenSelectedPullRequest();
+                e.Handled = true;
+            }
+        }
+
+        private void OpenSelectedPullRequest()
+        {
+            System.Diagnostics.Debug.WriteLine($"OpenSelectedPullRequest called - SelectedPullRequest: {_viewModel?.SelectedPullRequest?.Id}");
+            if (_viewModel?.SelectedPullRequest != null)
+            {
+                // Enter キーが押されたときにPRをブラウザで開く
+                if (_viewModel.OpenInBrowserCommand.CanExecute(null))
+                {
+                    System.Diagnostics.Debug.WriteLine("Executing OpenInBrowserCommand");
+                    _viewModel.OpenInBrowserCommand.Execute(null);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("OpenInBrowserCommand.CanExecute returned false");
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("No pull request selected");
+            }
+        }
+
         #endregion
     }
 }

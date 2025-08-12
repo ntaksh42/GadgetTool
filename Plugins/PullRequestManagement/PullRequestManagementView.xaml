@@ -433,6 +433,8 @@
                       CanUserReorderColumns="True" CanUserResizeColumns="True"
                       CanUserSortColumns="True" SelectionMode="Single"
                       Style="{StaticResource FilterableDataGridStyle}"
+                      PreviewKeyDown="DataGrid_PreviewKeyDown"
+                      MouseDoubleClick="DataGrid_MouseDoubleClick"
                       x:Name="PullRequestsDataGrid">
                 <DataGrid.ContextMenu>
                     <ContextMenu>

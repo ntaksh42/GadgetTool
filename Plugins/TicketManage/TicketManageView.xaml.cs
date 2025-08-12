@@ -296,10 +296,12 @@ namespace GadgetTools.Plugins.TicketManage
             OpenSelectedWorkItem();
         }
         
-        private void DataGrid_KeyDown(object sender, KeyEventArgs e)
+        private void DataGrid_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine($"TicketManager - PreviewKeyDown: {e.Key}");
             if (e.Key == Key.Enter)
             {
+                System.Diagnostics.Debug.WriteLine("TicketManager - Enter key detected, opening work item");
                 OpenSelectedWorkItem();
                 e.Handled = true;
             }

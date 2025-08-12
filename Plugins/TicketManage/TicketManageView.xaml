@@ -508,7 +508,7 @@
                               CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeColumns="True"
                               CanUserSortColumns="True" SelectionMode="Single" SelectionUnit="FullRow"
                               MouseDoubleClick="DataGrid_MouseDoubleClick"
-                              KeyDown="DataGrid_KeyDown"
+                              PreviewKeyDown="DataGrid_PreviewKeyDown"
                               Style="{StaticResource FilterableDataGridStyle}"
                               x:Name="WorkItemsDataGrid">
                         <DataGrid.RowStyle>
