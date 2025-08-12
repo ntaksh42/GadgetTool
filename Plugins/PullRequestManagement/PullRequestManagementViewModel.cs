@@ -708,15 +708,55 @@ namespace GadgetTools.Plugins.PullRequestManagement
                 OnPropertyChanged(nameof(Organization));
                 OnPropertyChanged(nameof(PersonalAccessToken));
                 OnPropertyChanged(nameof(IsSharedConfigured));
+                
+                // Load filter settings
                 AuthorFilter = settings.AuthorFilter;
                 TargetBranchFilter = settings.TargetBranchFilter;
+                SearchText = settings.SearchText;
+                FileExtensionFilter = settings.FileExtensionFilter;
+                MinChangesFilter = settings.MinChangesFilter;
+                SelectedStatus = settings.SelectedStatus;
                 FromDate = settings.FromDate;
+                
+                // Load multi-selection settings
+                if (settings.Projects?.Any() == true)
+                {
+                    Projects.Clear();
+                    foreach (var project in settings.Projects)
+                        Projects.Add(project);
+                }
+                
+                if (settings.Repositories?.Any() == true)
+                {
+                    Repositories.Clear();
+                    foreach (var repo in settings.Repositories)
+                        Repositories.Add(repo);
+                }
+                
+                if (settings.AllProjects?.Any() == true)
+                {
+                    AllProjects.Clear();
+                    foreach (var project in settings.AllProjects)
+                        AllProjects.Add(project);
+                }
+                
+                if (settings.AllRepositories?.Any() == true)
+                {
+                    AllRepositories.Clear();
+                    foreach (var repo in settings.AllRepositories)
+                        AllRepositories.Add(repo);
+                }
+                
+                // Load display settings
+                IsDetailPaneVisible = settings.IsDetailPaneVisible;
 
                 SavedSearches.Clear();
                 foreach (var search in settings.SavedSearches)
                 {
                     SavedSearches.Add(search);
                 }
+                
+                System.Diagnostics.Debug.WriteLine("PullRequestManagement設定を復元しました");
             }
             catch (Exception ex)
             {
@@ -738,7 +778,16 @@ namespace GadgetTools.Plugins.PullRequestManagement
                     Repository = Repository,
                     AuthorFilter = AuthorFilter,
                     TargetBranchFilter = TargetBranchFilter,
+                    SearchText = SearchText,
+                    FileExtensionFilter = FileExtensionFilter,
+                    MinChangesFilter = MinChangesFilter,
+                    SelectedStatus = SelectedStatus,
                     FromDate = FromDate,
+                    Projects = Projects.ToList(),
+                    Repositories = Repositories.ToList(),
+                    AllProjects = AllProjects.ToList(),
+                    AllRepositories = AllRepositories.ToList(),
+                    IsDetailPaneVisible = IsDetailPaneVisible,
                     SavedSearches = SavedSearches.ToList()
                 };
 

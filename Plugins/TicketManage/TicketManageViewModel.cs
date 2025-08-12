@@ -964,9 +964,13 @@ namespace GadgetTools.Plugins.TicketManage
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(Project))
+            // プロジェクト設定の検証: 単一プロジェクト または 複数プロジェクトのいずれかが設定されている必要がある
+            bool hasProject = !string.IsNullOrWhiteSpace(Project);
+            bool hasProjects = Projects?.Any() == true;
+            
+            if (!hasProject && !hasProjects)
             {
-                SetError("プロジェクト名を入力してください。");
+                SetError("プロジェクト名を入力するか、複数プロジェクトを選択してください。");
                 return false;
             }
 
@@ -975,12 +979,28 @@ namespace GadgetTools.Plugins.TicketManage
 
         private bool CanExecuteConnection()
         {
-            return !IsLoading && _configService.IsConfigured && !string.IsNullOrWhiteSpace(Project);
+            // 基本条件: ローディング中でない かつ Azure DevOps設定が完了している
+            if (IsLoading || !_configService.IsConfigured)
+                return false;
+            
+            // プロジェクト条件: 単一プロジェクト または 複数プロジェクトのいずれかが設定されている
+            bool hasProject = !string.IsNullOrWhiteSpace(Project);
+            bool hasProjects = Projects?.Any() == true;
+            
+            return hasProject || hasProjects;
         }
 
         private bool CanExecuteQuery()
         {
-            return !IsLoading && _configService.IsConfigured && !string.IsNullOrWhiteSpace(Project);
+            // 基本条件: ローディング中でない かつ Azure DevOps設定が完了している
+            if (IsLoading || !_configService.IsConfigured)
+                return false;
+            
+            // プロジェクト条件: 単一プロジェクト または 複数プロジェクトのいずれかが設定されている
+            bool hasProject = !string.IsNullOrWhiteSpace(Project);
+            bool hasProjects = Projects?.Any() == true;
+            
+            return hasProject || hasProjects;
         }
 
         private bool CanSaveResult()
@@ -990,7 +1010,22 @@ namespace GadgetTools.Plugins.TicketManage
 
         private AzureDevOpsConfig CreateAzureDevOpsConfig()
         {
-            return _configService.CreateConfig(Project.Trim());
+            // 複数プロジェクト対応: 単一プロジェクトまたは最初の複数プロジェクトを使用
+            string projectName;
+            if (!string.IsNullOrWhiteSpace(Project))
+            {
+                projectName = Project.Trim();
+            }
+            else if (Projects?.Any() == true)
+            {
+                projectName = Projects.First().Trim();
+            }
+            else
+            {
+                projectName = ""; // フォールバック
+            }
+            
+            return _configService.CreateConfig(projectName);
         }
 
         private WorkItemQueryRequest CreateQueryRequest(AzureDevOpsConfig config)
@@ -1090,6 +1125,21 @@ namespace GadgetTools.Plugins.TicketManage
             }
         }
 
+        public override async Task InitializeAsync()
+        {
+            try
+            {
+                // 保存された設定を復元
+                await RestoreSettingsAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"設定読み込みエラー: {ex.Message}");
+            }
+
+            await base.InitializeAsync();
+        }
+
         public override async Task CleanupAsync()
         {
             // 共通設定のイベントを解除
@@ -1121,32 +1171,186 @@ namespace GadgetTools.Plugins.TicketManage
 
         private async Task SaveSettingsAsync()
         {
-            var settings = SettingsService.LoadSettings();
-            
-            // 共通設定を保存
-            _configService.SaveConfiguration();
-            
-            // プラグイン固有設定を保存
-            if (settings.AzureDevOps == null)
+            try
             {
-                settings.AzureDevOps = new SettingsService.AzureDevOpsSettings();
-            }
-            
-            settings.AzureDevOps.Project = Project.Trim();
-            settings.AzureDevOps.Projects = Projects;
-            settings.AzureDevOps.WorkItemType = WorkItemType;
-            settings.AzureDevOps.State = State;
-            settings.AzureDevOps.Iteration = Iteration;
-            settings.AzureDevOps.Iterations = Iterations;
-            settings.AzureDevOps.Area = Area;
-            settings.AzureDevOps.Areas = Areas;
-            settings.AzureDevOps.MaxResults = MaxResults;
-            settings.AzureDevOps.DetailedMarkdown = DetailedMarkdown;
-            settings.AzureDevOps.HighlightDays = HighlightDays;
-            settings.AzureDevOps.EnableHighlight = EnableHighlight;
+                // 共通設定を保存
+                _configService.SaveConfiguration();
+                
+                // プラグイン固有設定を保存
+                var pluginSettings = new TicketManagePluginSettings
+                {
+                    Organization = Organization,
+                    Project = Project.Trim(),
+                    PersonalAccessToken = PatToken,
+                    WorkItemType = WorkItemType,
+                    State = State,
+                    MaxResults = MaxResults,
+                    DetailedMarkdown = DetailedMarkdown,
+                    
+                    // UI State Settings
+                    Area = Area,
+                    Iteration = Iteration,
+                    Projects = Projects,
+                    Areas = Areas,
+                    Iterations = Iterations,
+                    WorkItemTypes = WorkItemTypes,
+                    States = States,
+                    
+                    // Advanced Search Settings
+                    TitleSearch = TitleSearch,
+                    DescriptionSearch = DescriptionSearch,
+                    CreatedAfter = CreatedAfter,
+                    CreatedBefore = CreatedBefore,
+                    UpdatedAfter = UpdatedAfter,
+                    UpdatedBefore = UpdatedBefore,
+                    TagsSearch = TagsSearch,
+                    MinPriority = MinPriority,
+                    MaxPriority = MaxPriority,
+                    AssignedTo = AssignedTo,
+                    
+                    // Display Settings
+                    HighlightDays = HighlightDays,
+                    EnableHighlight = EnableHighlight,
+                    FilterText = FilterText,
+                    
+                    LastQueryTime = DateTime.Now
+                };
+                
+                // プラグインの設定保存メソッドを使用
+                var plugin = new TicketManagePlugin();
+                await plugin.SaveSettingsAsync(pluginSettings);
+                
+                // 後方互換性のため既存の共有設定も更新
+                var settings = SettingsService.LoadSettings();
+                if (settings.AzureDevOps == null)
+                {
+                    settings.AzureDevOps = new SettingsService.AzureDevOpsSettings();
+                }
+                
+                settings.AzureDevOps.Project = Project.Trim();
+                settings.AzureDevOps.Projects = Projects;
+                settings.AzureDevOps.WorkItemType = WorkItemType;
+                settings.AzureDevOps.State = State;
+                settings.AzureDevOps.Iteration = Iteration;
+                settings.AzureDevOps.Iterations = Iterations;
+                settings.AzureDevOps.Area = Area;
+                settings.AzureDevOps.Areas = Areas;
+                settings.AzureDevOps.MaxResults = MaxResults;
+                settings.AzureDevOps.DetailedMarkdown = DetailedMarkdown;
+                settings.AzureDevOps.HighlightDays = HighlightDays;
+                settings.AzureDevOps.EnableHighlight = EnableHighlight;
 
-            SettingsService.SaveSettings(settings);
-            await Task.CompletedTask;
+                SettingsService.SaveSettings(settings);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"設定保存エラー: {ex.Message}");
+            }
+        }
+
+        private async Task RestoreSettingsAsync()
+        {
+            try
+            {
+                var plugin = new TicketManagePlugin();
+                var settingsObj = await plugin.LoadSettingsAsync();
+                
+                if (settingsObj is TicketManagePluginSettings settings)
+                {
+                    // UI状態を復元
+                    if (!string.IsNullOrEmpty(settings.Project))
+                        Project = settings.Project;
+                    
+                    if (!string.IsNullOrEmpty(settings.Area))
+                        Area = settings.Area;
+                    
+                    if (!string.IsNullOrEmpty(settings.Iteration))
+                        Iteration = settings.Iteration;
+                    
+                    if (!string.IsNullOrEmpty(settings.WorkItemType))
+                        WorkItemType = settings.WorkItemType;
+                    
+                    if (!string.IsNullOrEmpty(settings.State))
+                        State = settings.State;
+                    
+                    MaxResults = settings.MaxResults;
+                    DetailedMarkdown = settings.DetailedMarkdown;
+                    HighlightDays = settings.HighlightDays;
+                    EnableHighlight = settings.EnableHighlight;
+                    
+                    // リストを復元
+                    if (settings.Projects?.Any() == true)
+                    {
+                        Projects = settings.Projects;
+                        OnPropertyChanged(nameof(Projects));
+                        OnPropertyChanged(nameof(ProjectsPreview));
+                    }
+                    
+                    if (settings.Areas?.Any() == true)
+                    {
+                        Areas = settings.Areas;
+                        OnPropertyChanged(nameof(Areas));
+                        OnPropertyChanged(nameof(AreasPreview));
+                    }
+                    
+                    if (settings.Iterations?.Any() == true)
+                    {
+                        Iterations = settings.Iterations;
+                        OnPropertyChanged(nameof(Iterations));
+                        OnPropertyChanged(nameof(IterationsPreview));
+                    }
+                    
+                    if (settings.WorkItemTypes?.Any() == true)
+                    {
+                        WorkItemTypes = settings.WorkItemTypes;
+                    }
+                    
+                    if (settings.States?.Any() == true)
+                    {
+                        States = settings.States;
+                    }
+                    
+                    // 高度な検索条件を復元
+                    if (!string.IsNullOrEmpty(settings.TitleSearch))
+                        TitleSearch = settings.TitleSearch;
+                    
+                    if (!string.IsNullOrEmpty(settings.DescriptionSearch))
+                        DescriptionSearch = settings.DescriptionSearch;
+                    
+                    if (settings.CreatedAfter.HasValue)
+                        CreatedAfter = settings.CreatedAfter;
+                    
+                    if (settings.CreatedBefore.HasValue)
+                        CreatedBefore = settings.CreatedBefore;
+                    
+                    if (settings.UpdatedAfter.HasValue)
+                        UpdatedAfter = settings.UpdatedAfter;
+                    
+                    if (settings.UpdatedBefore.HasValue)
+                        UpdatedBefore = settings.UpdatedBefore;
+                    
+                    if (!string.IsNullOrEmpty(settings.TagsSearch))
+                        TagsSearch = settings.TagsSearch;
+                    
+                    if (settings.MinPriority.HasValue)
+                        MinPriority = settings.MinPriority;
+                    
+                    if (settings.MaxPriority.HasValue)
+                        MaxPriority = settings.MaxPriority;
+                    
+                    if (!string.IsNullOrEmpty(settings.AssignedTo))
+                        AssignedTo = settings.AssignedTo;
+                    
+                    if (!string.IsNullOrEmpty(settings.FilterText))
+                        FilterText = settings.FilterText;
+                        
+                    System.Diagnostics.Debug.WriteLine("TicketManager設定を復元しました");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"設定復元エラー: {ex.Message}");
+            }
         }
 
         #region Advanced Filter Methods

@@ -179,7 +179,20 @@ namespace GadgetTools.Plugins.PullRequestManagement
         #region Filter Settings
         public string AuthorFilter { get; set; } = string.Empty;
         public string TargetBranchFilter { get; set; } = string.Empty;
+        public string SearchText { get; set; } = string.Empty;
+        public string FileExtensionFilter { get; set; } = string.Empty;
+        public string MinChangesFilter { get; set; } = string.Empty;
+        public string SelectedStatus { get; set; } = "All";
         public DateTime? FromDate { get; set; }
+        
+        // Multi-selection settings
+        public List<string> Projects { get; set; } = new();
+        public List<string> Repositories { get; set; } = new();
+        public List<string> AllProjects { get; set; } = new();
+        public List<string> AllRepositories { get; set; } = new();
+        
+        // Display settings
+        public bool IsDetailPaneVisible { get; set; } = false;
         #endregion
         
         #region UI Settings

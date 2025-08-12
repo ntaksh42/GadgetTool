@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Controls;
 using GadgetTools.Core.Interfaces;
 using GadgetTools.Services;
@@ -43,54 +44,84 @@ namespace GadgetTools.Plugins.TicketManage
         {
             if (settings is TicketManagePluginSettings ticketSettings)
             {
-                // プラグイン固有の設定を保存
-                var appSettings = SettingsService.LoadSettings();
-                
-                // 設定にTicketManage設定を追加/更新
-                appSettings.AzureDevOps = new SettingsService.AzureDevOpsSettings
+                try
                 {
-                    Organization = ticketSettings.Organization,
-                    Project = ticketSettings.Project,
-                    EncryptedPersonalAccessToken = SettingsService.EncryptString(ticketSettings.PersonalAccessToken),
-                    WorkItemType = ticketSettings.WorkItemType,
-                    State = ticketSettings.State,
-                    MaxResults = ticketSettings.MaxResults,
-                    DetailedMarkdown = ticketSettings.DetailedMarkdown
-                };
-
-                SettingsService.SaveSettings(appSettings);
+                    // JSON形式でプラグイン設定を保存
+                    var settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 
+                        "GadgetTools", "TicketManageSettings.json");
+                    
+                    var directory = Path.GetDirectoryName(settingsPath);
+                    if (!Directory.Exists(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+                    
+                    var json = System.Text.Json.JsonSerializer.Serialize(ticketSettings, new System.Text.Json.JsonSerializerOptions 
+                    { 
+                        WriteIndented = true 
+                    });
+                    await File.WriteAllTextAsync(settingsPath, json);
+                    
+                    // 基本設定も共有設定に保存
+                    var appSettings = SettingsService.LoadSettings();
+                    appSettings.AzureDevOps = new SettingsService.AzureDevOpsSettings
+                    {
+                        Organization = ticketSettings.Organization,
+                        Project = ticketSettings.Project,
+                        EncryptedPersonalAccessToken = SettingsService.EncryptString(ticketSettings.PersonalAccessToken),
+                        WorkItemType = ticketSettings.WorkItemType,
+                        State = ticketSettings.State,
+                        MaxResults = ticketSettings.MaxResults,
+                        DetailedMarkdown = ticketSettings.DetailedMarkdown
+                    };
+                    SettingsService.SaveSettings(appSettings);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"TicketManage設定保存エラー: {ex.Message}");
+                }
             }
-            await Task.CompletedTask;
         }
 
-        public Task<object?> LoadSettingsAsync()
+        public async Task<object?> LoadSettingsAsync()
         {
             try
             {
-                var appSettings = SettingsService.LoadSettings();
+                var settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 
+                    "GadgetTools", "TicketManageSettings.json");
                 
-                if (appSettings.AzureDevOps != null)
+                TicketManagePluginSettings settings;
+                
+                if (File.Exists(settingsPath))
                 {
-                    var azureSettings = appSettings.AzureDevOps;
+                    var json = await File.ReadAllTextAsync(settingsPath);
+                    settings = System.Text.Json.JsonSerializer.Deserialize<TicketManagePluginSettings>(json) ?? new TicketManagePluginSettings();
+                }
+                else
+                {
+                    // フォールバック: 既存の共有設定から読み込み
+                    settings = new TicketManagePluginSettings();
+                    var appSettings = SettingsService.LoadSettings();
                     
-                    return Task.FromResult<object?>(new TicketManagePluginSettings
+                    if (appSettings.AzureDevOps != null)
                     {
-                        Organization = azureSettings.Organization,
-                        Project = azureSettings.Project,
-                        PersonalAccessToken = SettingsService.DecryptString(azureSettings.EncryptedPersonalAccessToken),
-                        WorkItemType = azureSettings.WorkItemType,
-                        State = azureSettings.State,
-                        MaxResults = azureSettings.MaxResults,
-                        DetailedMarkdown = azureSettings.DetailedMarkdown
-                    });
+                        var azureSettings = appSettings.AzureDevOps;
+                        settings.Organization = azureSettings.Organization;
+                        settings.Project = azureSettings.Project;
+                        settings.PersonalAccessToken = SettingsService.DecryptString(azureSettings.EncryptedPersonalAccessToken);
+                        settings.WorkItemType = azureSettings.WorkItemType;
+                        settings.State = azureSettings.State;
+                        settings.MaxResults = azureSettings.MaxResults;
+                        settings.DetailedMarkdown = azureSettings.DetailedMarkdown;
+                    }
                 }
                 
-                return Task.FromResult<object?>(new TicketManagePluginSettings());
+                return settings;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"TicketManage設定読み込みエラー: {ex.Message}");
-                return Task.FromResult<object?>(null);
+                return new TicketManagePluginSettings();
             }
         }
     }
@@ -109,5 +140,31 @@ namespace GadgetTools.Plugins.TicketManage
         public bool DetailedMarkdown { get; set; } = true;
         public string LastUsedFilter { get; set; } = string.Empty;
         public DateTime LastQueryTime { get; set; } = DateTime.MinValue;
+        
+        // UI State Settings
+        public string Area { get; set; } = string.Empty;
+        public string Iteration { get; set; } = string.Empty;
+        public List<string> Projects { get; set; } = new();
+        public List<string> Areas { get; set; } = new();
+        public List<string> Iterations { get; set; } = new();
+        public List<string> WorkItemTypes { get; set; } = new();
+        public List<string> States { get; set; } = new();
+        
+        // Advanced Search Settings
+        public string TitleSearch { get; set; } = string.Empty;
+        public string DescriptionSearch { get; set; } = string.Empty;
+        public DateTime? CreatedAfter { get; set; }
+        public DateTime? CreatedBefore { get; set; }
+        public DateTime? UpdatedAfter { get; set; }
+        public DateTime? UpdatedBefore { get; set; }
+        public string TagsSearch { get; set; } = string.Empty;
+        public int? MinPriority { get; set; }
+        public int? MaxPriority { get; set; }
+        public string AssignedTo { get; set; } = string.Empty;
+        
+        // Display Settings
+        public int HighlightDays { get; set; } = 7;
+        public bool EnableHighlight { get; set; } = true;
+        public string FilterText { get; set; } = string.Empty;
     }
 }
